@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model Shop {
+  id               String   @id @default(cuid())
+  shopDomain       String   @unique
+  aiProvider       String   @default("cloud") // "cloud" | "byok_openai" | "byok_anthropic" | "ondevice"
+  byokApiKey       String? // encrypted, nullable
+  brandVoice       String? // brand voice instructions text
+  sampleProductIds String? // JSON array of product IDs used for voice training
+  tier             String   @default("free") // "free" | "starter" | "growth" | "scale"
+  monthlyUsage     Int      @default(0) // products processed this billing cycle
+  usageResetDate   DateTime @default(now())
+  targetLanguage   String   @default("en") // ISO code
+  descriptionLength String  @default("medium") // "short" | "medium" | "long"
+  defaultFields    String   @default("[\"description\",\"seoTitle\",\"seoDescription\",\"altText\"]") // JSON array
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Job {
+  id             String    @id @default(cuid())
+  shopDomain     String
+  status         String    @default("pending") // "pending" | "processing" | "completed" | "failed" | "paused"
+  totalProducts  Int       @default(0)
+  processedCount Int       @default(0)
+  failedCount    Int       @default(0)
+  generateFields String // JSON: ["description", "seoTitle", "seoDescription", "altText"]
+  aiProvider     String // snapshot of provider used for this job
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  items JobItem[]
+}
+
+model JobItem {
+  id               String  @id @default(cuid())
+  jobId            String
+  shopifyProductId String // Shopify GID e.g. "gid://shopify/Product/123"
+  shopifyVariantId String?
+  productTitle     String
+  status           String  @default("pending") // "pending" | "processing" | "generated" | "approved" | "published" | "failed" | "skipped"
+
+  // Original content (backup for undo)
+  originalDescription String?
+  originalSeoTitle    String?
+  originalSeoDesc     String?
+  originalAltTexts    String? // JSON: { imageId: altText }
+
+  // AI-generated content (staged, not yet published)
+  generatedDescription String?
+  generatedSeoTitle    String?
+  generatedSeoDesc     String?
+  generatedAltTexts    String? // JSON: { imageId: altText }
+
+  // Merchant edits (if they modify the AI output before publishing)
+  editedDescription String?
+  editedSeoTitle    String?
+  editedSeoDesc     String?
+  editedAltTexts    String?
+
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([shopifyProductId])
+}

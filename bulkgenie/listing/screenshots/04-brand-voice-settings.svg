@@ -1,0 +1,180 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <filter id="shadow1" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.05"/>
+    </filter>
+    <filter id="shadow2" x="-1%" y="-1%" width="102%" height="106%">
+      <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="900" fill="#f6f6f7"/>
+
+  <!-- Top bar -->
+  <rect width="1600" height="56" fill="#ffffff" filter="url(#shadow1)"/>
+  <rect x="0" y="56" width="1600" height="1" fill="#e1e3e5"/>
+
+  <!-- Back arrow -->
+  <g transform="translate(32, 18)">
+    <path d="M12 4l-8 8 8 8" stroke="#6d7175" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="4" y1="12" x2="20" y2="12" stroke="#6d7175" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+  <!-- Page title -->
+  <text x="68" y="36" font-size="18" font-weight="600" fill="#202223">Settings</text>
+
+  <!-- Shopify frame indicator -->
+  <rect x="1400" y="14" width="170" height="28" rx="4" fill="#f6f6f7"/>
+  <text x="1415" y="33" font-size="12" fill="#6d7175">BulkGenie</text>
+  <circle cx="1545" cy="28" r="12" fill="#e1e3e5"/>
+  <text x="1540" y="33" font-size="12" fill="#6d7175">A</text>
+
+  <!-- ======== SECTION 1: AI Provider ======== -->
+
+  <!-- Left sidebar annotation: AI Provider -->
+  <g transform="translate(60, 90)">
+    <text font-size="15" font-weight="600" fill="#202223">AI Provider</text>
+    <text font-size="13" fill="#6d7175" y="22">
+      <tspan x="0" dy="0">Choose how AI content</tspan>
+      <tspan x="0" dy="18">is generated for your</tspan>
+      <tspan x="0" dy="18">product descriptions.</tspan>
+    </text>
+    <!-- Dashed connector line -->
+    <line x1="220" y1="20" x2="280" y2="20" stroke="#c9cccf" stroke-width="1" stroke-dasharray="4,3"/>
+  </g>
+
+  <!-- AI Provider Card -->
+  <rect x="340" y="82" width="1200" height="290" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+
+  <!-- Radio 1: BulkGenie Cloud (selected) -->
+  <g transform="translate(376, 116)">
+    <circle cx="10" cy="10" r="10" fill="none" stroke="#008060" stroke-width="2"/>
+    <circle cx="10" cy="10" r="5" fill="#008060"/>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">BulkGenie Cloud (default)</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Uses our AI infrastructure. Included with your plan.</text>
+  </g>
+
+  <!-- Radio 2: Anthropic -->
+  <g transform="translate(376, 178)">
+    <circle cx="10" cy="10" r="10" fill="none" stroke="#c9cccf" stroke-width="2"/>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Bring Your Own Key — Anthropic</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your own Anthropic API key for Claude models.</text>
+  </g>
+
+  <!-- Radio 3: OpenAI -->
+  <g transform="translate(376, 240)">
+    <circle cx="10" cy="10" r="10" fill="none" stroke="#c9cccf" stroke-width="2"/>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Bring Your Own Key — OpenAI</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your own OpenAI API key for GPT models.</text>
+  </g>
+
+  <!-- Save Provider Button -->
+  <rect x="376" y="304" width="140" height="36" rx="6" fill="#008060"/>
+  <text x="404" y="327" font-size="14" font-weight="500" fill="#ffffff">Save Provider</text>
+
+  <!-- ======== SECTION 2: Brand Voice ======== -->
+
+  <!-- Left sidebar annotation: Brand Voice -->
+  <g transform="translate(60, 406)">
+    <text font-size="15" font-weight="600" fill="#202223">Brand Voice</text>
+    <text font-size="13" fill="#6d7175" y="22">
+      <tspan x="0" dy="0">Describe your brand's</tspan>
+      <tspan x="0" dy="18">tone and style so AI</tspan>
+      <tspan x="0" dy="18">generated content</tspan>
+      <tspan x="0" dy="18">matches your brand.</tspan>
+    </text>
+    <!-- Dashed connector line -->
+    <line x1="220" y1="20" x2="280" y2="20" stroke="#c9cccf" stroke-width="1" stroke-dasharray="4,3"/>
+  </g>
+
+  <!-- Brand Voice Card -->
+  <rect x="340" y="398" width="1200" height="268" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+
+  <!-- Label -->
+  <text x="376" y="432" font-size="14" font-weight="600" fill="#202223">Brand Voice Instructions</text>
+
+  <!-- Textarea -->
+  <rect x="376" y="444" width="1128" height="120" rx="6" fill="#ffffff" stroke="#c9cccf" stroke-width="1"/>
+  <text x="390" y="468" font-size="13" fill="#202223">
+    <tspan x="390" dy="0">Write in a warm, conversational tone. We're a sustainable home goods brand.</tspan>
+    <tspan x="390" dy="20">Emphasize eco-friendly materials and craftsmanship. Avoid corporate jargon.</tspan>
+    <tspan x="390" dy="20">Use 'you' and 'your' to speak directly to the customer.</tspan>
+  </text>
+
+  <!-- Help text below textarea -->
+  <text x="376" y="584" font-size="12" fill="#6d7175">Tip: Be specific. Include examples of words to use or avoid.</text>
+
+  <!-- Save Brand Voice Button -->
+  <rect x="376" y="604" width="160" height="36" rx="6" fill="#008060"/>
+  <text x="396" y="627" font-size="14" font-weight="500" fill="#ffffff">Save Brand Voice</text>
+
+  <!-- ======== SECTION 3: Defaults ======== -->
+
+  <!-- Left sidebar annotation: Defaults -->
+  <g transform="translate(60, 700)">
+    <text font-size="15" font-weight="600" fill="#202223">Defaults</text>
+    <text font-size="13" fill="#6d7175" y="22">
+      <tspan x="0" dy="0">Default options for</tspan>
+      <tspan x="0" dy="18">new bulk jobs.</tspan>
+    </text>
+    <!-- Dashed connector line -->
+    <line x1="220" y1="20" x2="280" y2="20" stroke="#c9cccf" stroke-width="1" stroke-dasharray="4,3"/>
+  </g>
+
+  <!-- Defaults Card -->
+  <rect x="340" y="692" width="1200" height="185" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+
+  <!-- Language dropdown -->
+  <text x="376" y="724" font-size="14" font-weight="600" fill="#202223">Language</text>
+  <rect x="376" y="734" width="260" height="36" rx="6" fill="#ffffff" stroke="#c9cccf" stroke-width="1"/>
+  <text x="390" y="757" font-size="13" fill="#202223">English</text>
+  <path d="M618 748 l6 8 l6 -8" stroke="#6d7175" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Description Length dropdown -->
+  <text x="672" y="724" font-size="14" font-weight="600" fill="#202223">Description Length</text>
+  <rect x="672" y="734" width="260" height="36" rx="6" fill="#ffffff" stroke="#c9cccf" stroke-width="1"/>
+  <text x="686" y="757" font-size="13" fill="#202223">Medium (~200 words)</text>
+  <path d="M914 748 l6 8 l6 -8" stroke="#6d7175" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Default fields checkboxes -->
+  <text x="376" y="800" font-size="14" font-weight="600" fill="#202223">Default Fields</text>
+
+  <!-- Checkbox: Title -->
+  <g transform="translate(376, 812)">
+    <rect width="18" height="18" rx="3" fill="#008060"/>
+    <path d="M4 9 l3 3 l7 -7" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="26" y="14" font-size="13" fill="#202223">Title</text>
+  </g>
+
+  <!-- Checkbox: Description -->
+  <g transform="translate(476, 812)">
+    <rect width="18" height="18" rx="3" fill="#008060"/>
+    <path d="M4 9 l3 3 l7 -7" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="26" y="14" font-size="13" fill="#202223">Description</text>
+  </g>
+
+  <!-- Checkbox: SEO Title -->
+  <g transform="translate(606, 812)">
+    <rect width="18" height="18" rx="3" fill="#008060"/>
+    <path d="M4 9 l3 3 l7 -7" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="26" y="14" font-size="13" fill="#202223">SEO Title</text>
+  </g>
+
+  <!-- Checkbox: SEO Description -->
+  <g transform="translate(726, 812)">
+    <rect width="18" height="18" rx="3" fill="#008060"/>
+    <path d="M4 9 l3 3 l7 -7" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="26" y="14" font-size="13" fill="#202223">SEO Description</text>
+  </g>
+
+  <!-- Checkbox: Tags -->
+  <g transform="translate(886, 812)">
+    <rect width="18" height="18" rx="3" fill="#008060"/>
+    <path d="M4 9 l3 3 l7 -7" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="26" y="14" font-size="13" fill="#202223">Tags</text>
+  </g>
+
+  <!-- Scrollbar hint -->
+  <rect x="1580" y="60" width="4" height="200" rx="2" fill="#d2d5d8"/>
+</svg>

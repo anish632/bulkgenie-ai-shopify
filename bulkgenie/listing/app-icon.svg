@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#2C6ECB"/>
+    </linearGradient>
+    <clipPath id="roundedClip">
+      <rect width="1200" height="1200" rx="160" ry="160"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background: rounded square with gradient -->
+  <g clip-path="url(#roundedClip)">
+    <rect width="1200" height="1200" fill="url(#bgGradient)"/>
+  </g>
+
+  <!-- Foreground elements (white) -->
+
+  <!-- Stack of 3 document lines, positioned center-left, slightly above vertical center -->
+  <!-- Vertical center of the 3-line group is around y=540 (slightly above 600) -->
+  <!-- Line 1 -->
+  <rect x="310" y="474" width="360" height="36" rx="18" ry="18" fill="#FFFFFF"/>
+  <!-- Line 2 -->
+  <rect x="310" y="534" width="360" height="36" rx="18" ry="18" fill="#FFFFFF"/>
+  <!-- Line 3 -->
+  <rect x="310" y="594" width="360" height="36" rx="18" ry="18" fill="#FFFFFF"/>
+
+  <!-- A shorter 4th line for visual variety (like a partial last line of text) -->
+  <rect x="310" y="654" width="220" height="36" rx="18" ry="18" fill="#FFFFFF" opacity="0.6"/>
+
+  <!-- Main sparkle / 4-pointed star — upper right of the text lines -->
+  <!-- Centered around (740, 440), about 180px wide -->
+  <g transform="translate(740, 440)">
+    <path d="
+      M 0 -90
+      C 6 -30, 30 -6, 90 0
+      C 30 6, 6 30, 0 90
+      C -6 30, -30 6, -90 0
+      C -30 -6, -6 -30, 0 -90
+      Z
+    " fill="#FFFFFF"/>
+  </g>
+
+  <!-- Secondary smaller sparkle — for visual depth -->
+  <!-- Centered around (860, 340), about 80px wide -->
+  <g transform="translate(870, 330)">
+    <path d="
+      M 0 -40
+      C 3 -13, 13 -3, 40 0
+      C 13 3, 3 13, 0 40
+      C -3 13, -13 3, -40 0
+      C -13 -3, -3 -13, 0 -40
+      Z
+    " fill="#FFFFFF" opacity="0.6"/>
+  </g>
+
+  <!-- Tertiary tiny sparkle — extra depth accent -->
+  <!-- Centered around (650, 340), about 36px wide -->
+  <g transform="translate(640, 340)">
+    <path d="
+      M 0 -18
+      C 1.5 -6, 6 -1.5, 18 0
+      C 6 1.5, 1.5 6, 0 18
+      C -1.5 6, -6 1.5, -18 0
+      C -6 -1.5, -1.5 -6, 0 -18
+      Z
+    " fill="#FFFFFF" opacity="0.35"/>
+  </g>
+
+</svg>

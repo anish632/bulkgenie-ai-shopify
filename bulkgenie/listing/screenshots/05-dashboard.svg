@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+  <defs>
+    <filter id="shadow1" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.05"/>
+    </filter>
+    <filter id="shadow2" x="-1%" y="-1%" width="102%" height="106%">
+      <feDropShadow dx="0" dy="1" stdDeviation="3" flood-color="#000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="900" fill="#f6f6f7"/>
+
+  <!-- Top bar -->
+  <rect width="1600" height="56" fill="#ffffff" filter="url(#shadow1)"/>
+  <rect x="0" y="56" width="1600" height="1" fill="#e1e3e5"/>
+
+  <!-- Title -->
+  <text x="60" y="36" font-size="18" font-weight="600" fill="#202223">BulkGenie</text>
+
+  <!-- Shopify frame indicator -->
+  <rect x="1400" y="14" width="170" height="28" rx="4" fill="#f6f6f7"/>
+  <text x="1415" y="33" font-size="12" fill="#6d7175">BulkGenie</text>
+  <circle cx="1545" cy="28" r="12" fill="#e1e3e5"/>
+  <text x="1540" y="33" font-size="12" fill="#6d7175">A</text>
+
+  <!-- ======== STAT CARDS ROW ======== -->
+
+  <!-- Stat Card 1: Products This Month -->
+  <rect x="60" y="88" width="480" height="120" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+  <text x="92" y="124" font-size="13" fill="#6d7175" font-weight="500">Products This Month</text>
+  <text x="92" y="172" font-size="40" font-weight="700" fill="#202223">47</text>
+
+  <!-- Stat Card 2: Remaining -->
+  <rect x="560" y="88" width="480" height="120" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+  <text x="592" y="124" font-size="13" fill="#6d7175" font-weight="500">Remaining</text>
+  <text x="592" y="172" font-size="40" font-weight="700" fill="#202223">453</text>
+
+  <!-- Stat Card 3: Plan -->
+  <rect x="1060" y="88" width="480" height="120" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+  <text x="1092" y="124" font-size="13" fill="#6d7175" font-weight="500">Plan</text>
+  <text x="1092" y="172" font-size="40" font-weight="700" fill="#202223">Growth</text>
+  <text x="1260" y="172" font-size="14" fill="#2c6ecb" font-weight="500" cursor="pointer" text-decoration="underline">Upgrade</text>
+
+  <!-- ======== RECENT JOBS CARD ======== -->
+
+  <rect x="60" y="240" width="1480" height="440" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
+
+  <!-- Card header -->
+  <text x="92" y="280" font-size="16" font-weight="600" fill="#202223">Recent Jobs</text>
+
+  <!-- Start New Job button -->
+  <rect x="1354" y="258" width="154" height="36" rx="6" fill="#008060"/>
+  <text x="1378" y="281" font-size="14" font-weight="500" fill="#ffffff">Start New Job</text>
+
+  <!-- Divider below header -->
+  <line x1="60" y1="306" x2="1540" y2="306" stroke="#e1e3e5" stroke-width="1"/>
+
+  <!-- Table header -->
+  <text x="92" y="340" font-size="13" font-weight="600" fill="#6d7175">Date</text>
+  <text x="380" y="340" font-size="13" font-weight="600" fill="#6d7175">Products</text>
+  <text x="600" y="340" font-size="13" font-weight="600" fill="#6d7175">Progress</text>
+  <text x="850" y="340" font-size="13" font-weight="600" fill="#6d7175">Status</text>
+  <text x="1120" y="340" font-size="13" font-weight="600" fill="#6d7175">Action</text>
+
+  <!-- Header divider -->
+  <line x1="60" y1="356" x2="1540" y2="356" stroke="#e1e3e5" stroke-width="1"/>
+
+  <!-- Row 1 -->
+  <text x="92" y="390" font-size="14" fill="#202223">Feb 10, 2026</text>
+  <text x="380" y="390" font-size="14" fill="#202223">25</text>
+  <text x="600" y="390" font-size="14" fill="#202223">25/25</text>
+  <!-- Completed badge -->
+  <rect x="840" y="374" width="94" height="24" rx="12" fill="#e3f1df"/>
+  <text x="862" y="391" font-size="12" font-weight="500" fill="#008060">Completed</text>
+  <text x="1120" y="390" font-size="14" fill="#2c6ecb" cursor="pointer">View</text>
+
+  <!-- Row divider -->
+  <line x1="92" y1="410" x2="1508" y2="410" stroke="#f1f2f3" stroke-width="1"/>
+
+  <!-- Row 2 -->
+  <text x="92" y="446" font-size="14" fill="#202223">Feb 8, 2026</text>
+  <text x="380" y="446" font-size="14" fill="#202223">12</text>
+  <text x="600" y="446" font-size="14" fill="#202223">12/12</text>
+  <!-- Completed badge -->
+  <rect x="840" y="430" width="94" height="24" rx="12" fill="#e3f1df"/>
+  <text x="862" y="447" font-size="12" font-weight="500" fill="#008060">Completed</text>
+  <text x="1120" y="446" font-size="14" fill="#2c6ecb" cursor="pointer">View</text>
+
+  <!-- Row divider -->
+  <line x1="92" y1="466" x2="1508" y2="466" stroke="#f1f2f3" stroke-width="1"/>
+
+  <!-- Row 3 -->
+  <text x="92" y="502" font-size="14" fill="#202223">Feb 7, 2026</text>
+  <text x="380" y="502" font-size="14" fill="#202223">50</text>
+  <text x="600" y="502" font-size="14" fill="#202223">43/50</text>
+  <!-- Processing badge (yellow) -->
+  <rect x="840" y="486" width="100" height="24" rx="12" fill="#fdf0d5"/>
+  <text x="858" y="503" font-size="12" font-weight="500" fill="#916a00">Processing</text>
+  <text x="1120" y="502" font-size="14" fill="#2c6ecb" cursor="pointer">View</text>
+
+  <!-- Row divider -->
+  <line x1="92" y1="522" x2="1508" y2="522" stroke="#f1f2f3" stroke-width="1"/>
+
+  <!-- Row 4 -->
+  <text x="92" y="558" font-size="14" fill="#202223">Feb 5, 2026</text>
+  <text x="380" y="558" font-size="14" fill="#202223">8</text>
+  <text x="600" y="558" font-size="14" fill="#202223">8/8</text>
+  <!-- Completed badge -->
+  <rect x="840" y="542" width="94" height="24" rx="12" fill="#e3f1df"/>
+  <text x="862" y="559" font-size="12" font-weight="500" fill="#008060">Completed</text>
+  <text x="1120" y="558" font-size="14" fill="#2c6ecb" cursor="pointer">View</text>
+
+  <!-- Bottom padding of table area -->
+
+  <!-- ======== FOOTER AREA (subtle) ======== -->
+  <text x="720" y="780" font-size="12" fill="#b5b5b5" text-anchor="middle">Powered by BulkGenie</text>
+</svg>

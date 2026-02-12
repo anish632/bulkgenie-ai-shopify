@@ -1,0 +1,236 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    </style>
+    <filter id="cardShadow" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.05"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1600" height="900" fill="#f6f6f7"/>
+
+  <!-- Top Nav Bar -->
+  <rect x="0" y="0" width="1600" height="56" fill="#ffffff" stroke="#e1e3e5" stroke-width="1"/>
+  <text x="80" y="35" font-size="16" font-weight="600" fill="#202223">BulkGenie</text>
+  <rect x="1340" y="16" width="100" height="24" rx="4" fill="#f6f6f7"/>
+  <text x="1360" y="33" font-size="12" fill="#6d7175">My Store</text>
+  <circle cx="1470" cy="28" r="14" fill="#e1e3e5"/>
+  <text x="1464" y="33" font-size="12" fill="#6d7175">AD</text>
+
+  <!-- Blue action bar at top (selected items) -->
+  <rect x="0" y="56" width="1600" height="52" fill="#2c6ecb"/>
+  <text x="120" y="87" font-size="14" font-weight="500" fill="#ffffff">4 selected</text>
+  <!-- Deselect X -->
+  <circle cx="90" cy="82" r="12" fill="rgba(255,255,255,0.2)"/>
+  <line x1="85" y1="77" x2="95" y2="87" stroke="#ffffff" stroke-width="1.5"/>
+  <line x1="95" y1="77" x2="85" y2="87" stroke="#ffffff" stroke-width="1.5"/>
+  <!-- Generate Content button -->
+  <rect x="1340" y="68" width="180" height="36" rx="6" fill="#008060"/>
+  <text x="1375" y="91" font-size="14" font-weight="600" fill="#ffffff">Generate Content (4)</text>
+
+  <!-- Page content area -->
+  <g transform="translate(80, 128)">
+    <!-- Back arrow + Page title -->
+    <g>
+      <path d="M0,14 L8,6 M0,14 L8,22" stroke="#6d7175" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <text x="24" y="22" font-size="20" font-weight="600" fill="#202223">Generate Content</text>
+    </g>
+
+    <!-- Select Fields Card -->
+    <g transform="translate(0, 44)">
+      <rect x="0" y="0" width="1440" height="100" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#cardShadow)"/>
+      <text x="24" y="32" font-size="16" font-weight="600" fill="#202223">Select Fields to Generate</text>
+      <text x="24" y="50" font-size="13" fill="#6d7175">Choose which content fields BulkGenie should generate for selected products</text>
+
+      <!-- Checkboxes row -->
+      <g transform="translate(24, 64)">
+        <!-- Checkbox 1: Product Description -->
+        <rect x="0" y="0" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="3,8 7,12 13,4" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="24" y="13" font-size="13" fill="#202223">Product Description</text>
+
+        <!-- Checkbox 2: SEO Title -->
+        <rect x="200" y="0" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="203,8 207,12 213,4" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="224" y="13" font-size="13" fill="#202223">SEO Title</text>
+
+        <!-- Checkbox 3: Meta Description -->
+        <rect x="360" y="0" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="363,8 367,12 373,4" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="384" y="13" font-size="13" fill="#202223">Meta Description</text>
+
+        <!-- Checkbox 4: Image Alt Text -->
+        <rect x="560" y="0" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="563,8 567,12 573,4" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="584" y="13" font-size="13" fill="#202223">Image Alt Text</text>
+      </g>
+    </g>
+
+    <!-- Index Table Card -->
+    <g transform="translate(0, 164)">
+      <rect x="0" y="0" width="1440" height="504" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#cardShadow)"/>
+
+      <!-- Table Header -->
+      <rect x="1" y="1" width="1438" height="44" rx="8" fill="#f6f6f7"/>
+      <!-- Fix corners at bottom of header -->
+      <rect x="1" y="20" width="1438" height="25" fill="#f6f6f7"/>
+      <line x1="1" y1="45" x2="1439" y2="45" stroke="#e1e3e5" stroke-width="1"/>
+
+      <!-- Header: Checkbox -->
+      <rect x="24" y="14" width="16" height="16" rx="3" fill="#008060"/>
+      <line x1="28" y1="22" x2="36" y2="22" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+      <!-- Header: Product -->
+      <text x="60" y="28" font-size="12" font-weight="600" fill="#6d7175">Product</text>
+      <!-- Header: SEO Title -->
+      <text x="520" y="28" font-size="12" font-weight="600" fill="#6d7175">SEO Title</text>
+      <!-- Header: Meta Description -->
+      <text x="860" y="28" font-size="12" font-weight="600" fill="#6d7175">Meta Description</text>
+      <!-- Header: Alt Text -->
+      <text x="1220" y="28" font-size="12" font-weight="600" fill="#6d7175">Alt Text</text>
+
+      <!-- Row 1: Organic Cotton T-Shirt (checked) -->
+      <g transform="translate(0, 46)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox checked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="27,36 31,40 37,32" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#e1e3e5"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#c9cccf"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Organic Cotton T-Shirt</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: OCT-001</text>
+        <!-- SEO Title -->
+        <text x="520" y="38" font-size="13" fill="#202223">Organic Cotton T-Shirt - Soft...</text>
+        <!-- Meta Description -->
+        <text x="860" y="38" font-size="13" fill="#202223">Shop our organic cotton...</text>
+        <!-- Alt Text Badge - green -->
+        <rect x="1220" y="24" width="80" height="24" rx="12" fill="#aee9d1"/>
+        <text x="1234" y="41" font-size="12" font-weight="500" fill="#0c5132">3/3 done</text>
+      </g>
+
+      <!-- Row 2: Leather Crossbody Bag (checked) -->
+      <g transform="translate(0, 118)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox checked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="27,36 31,40 37,32" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#e8d5c4"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#c4a882"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Leather Crossbody Bag</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: LCB-042</text>
+        <!-- SEO Title - Missing -->
+        <rect x="520" y="24" width="68" height="24" rx="12" fill="#ffc453"/>
+        <text x="534" y="41" font-size="12" font-weight="500" fill="#664400">Missing</text>
+        <!-- Meta Description - Missing -->
+        <rect x="860" y="24" width="68" height="24" rx="12" fill="#ffc453"/>
+        <text x="874" y="41" font-size="12" font-weight="500" fill="#664400">Missing</text>
+        <!-- Alt Text Badge - yellow -->
+        <rect x="1220" y="24" width="104" height="24" rx="12" fill="#ffc453"/>
+        <text x="1232" y="41" font-size="12" font-weight="500" fill="#664400">2/4 missing</text>
+      </g>
+
+      <!-- Row 3: Ceramic Coffee Mug Set (checked) -->
+      <g transform="translate(0, 190)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox checked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="27,36 31,40 37,32" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#d4e4f7"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#a8c8e8"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Ceramic Coffee Mug Set</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: CCM-103</text>
+        <!-- SEO Title -->
+        <text x="520" y="38" font-size="13" fill="#202223">Handmade Ceramic Coffee...</text>
+        <!-- Meta Description - Missing -->
+        <rect x="860" y="24" width="68" height="24" rx="12" fill="#ffc453"/>
+        <text x="874" y="41" font-size="12" font-weight="500" fill="#664400">Missing</text>
+        <!-- Alt Text - gray -->
+        <text x="1220" y="40" font-size="13" fill="#6d7175">No images</text>
+      </g>
+
+      <!-- Row 4: Bamboo Cutting Board (unchecked) -->
+      <g transform="translate(0, 262)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox unchecked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#ffffff" stroke="#8c9196" stroke-width="1.5"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#d6e8d0"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#a8d49a"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Bamboo Cutting Board</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: BCB-077</text>
+        <!-- SEO Title - Missing -->
+        <rect x="520" y="24" width="68" height="24" rx="12" fill="#ffc453"/>
+        <text x="534" y="41" font-size="12" font-weight="500" fill="#664400">Missing</text>
+        <!-- Meta Description - Missing -->
+        <rect x="860" y="24" width="68" height="24" rx="12" fill="#ffc453"/>
+        <text x="874" y="41" font-size="12" font-weight="500" fill="#664400">Missing</text>
+        <!-- Alt Text Badge - yellow -->
+        <rect x="1220" y="24" width="104" height="24" rx="12" fill="#ffc453"/>
+        <text x="1232" y="41" font-size="12" font-weight="500" fill="#664400">1/2 missing</text>
+      </g>
+
+      <!-- Row 5: Wool Blend Scarf (checked) -->
+      <g transform="translate(0, 334)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox checked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#008060"/>
+        <polyline points="27,36 31,40 37,32" stroke="#ffffff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#e8d8e8"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#c8a8c8"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Wool Blend Scarf</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: WBS-215</text>
+        <!-- SEO Title -->
+        <text x="520" y="38" font-size="13" fill="#202223">Wool Blend Scarf - Winter...</text>
+        <!-- Meta Description -->
+        <text x="860" y="38" font-size="13" fill="#202223">Stay warm with our...</text>
+        <!-- Alt Text Badge - green -->
+        <rect x="1220" y="24" width="80" height="24" rx="12" fill="#aee9d1"/>
+        <text x="1234" y="41" font-size="12" font-weight="500" fill="#0c5132">2/2 done</text>
+      </g>
+
+      <!-- Row 6: Stainless Steel Water Bottle (unchecked) -->
+      <g transform="translate(0, 406)">
+        <rect x="1" y="0" width="1438" height="72" fill="#ffffff"/>
+        <line x1="1" y1="72" x2="1439" y2="72" stroke="#e1e3e5" stroke-width="0.5"/>
+        <!-- Checkbox unchecked -->
+        <rect x="24" y="28" width="16" height="16" rx="3" fill="#ffffff" stroke="#8c9196" stroke-width="1.5"/>
+        <!-- Thumbnail -->
+        <rect x="60" y="20" width="32" height="32" rx="4" fill="#d4d4d4"/>
+        <rect x="66" y="26" width="20" height="20" rx="2" fill="#b0b0b0"/>
+        <!-- Product name -->
+        <text x="104" y="33" font-size="14" font-weight="500" fill="#202223">Stainless Steel Water Bottle</text>
+        <text x="104" y="50" font-size="12" fill="#6d7175">SKU: SSW-389</text>
+        <!-- SEO Title -->
+        <text x="520" y="38" font-size="13" fill="#202223">Insulated Water Bottle...</text>
+        <!-- Meta Description -->
+        <text x="860" y="38" font-size="13" fill="#202223">Keep drinks cold...</text>
+        <!-- Alt Text Badge - yellow -->
+        <rect x="1220" y="24" width="104" height="24" rx="12" fill="#ffc453"/>
+        <text x="1232" y="41" font-size="12" font-weight="500" fill="#664400">0/3 missing</text>
+      </g>
+
+      <!-- Table footer / pagination hint -->
+      <g transform="translate(0, 478)">
+        <rect x="1" y="0" width="1438" height="25" rx="0" fill="#f6f6f7"/>
+        <rect x="1" y="4" width="1438" height="22" rx="8" fill="#f6f6f7"/>
+        <text x="660" y="18" font-size="12" fill="#6d7175">Showing 6 of 42 products</text>
+        <text x="800" y="18" font-size="12" fill="#2c6ecb" cursor="pointer">View all</text>
+      </g>
+    </g>
+  </g>
+</svg>
