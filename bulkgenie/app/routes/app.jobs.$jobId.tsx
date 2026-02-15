@@ -30,7 +30,7 @@ import { ImageIcon } from "@shopify/polaris-icons";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { updateProductInShopify } from "../services/shopify/products";
-import { getJobQueue } from "../services/queue/queue.server";
+import { processJobInline } from "../services/queue/inline-processor.server";
 
 interface JobItemData {
   id: string;
@@ -233,14 +233,16 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         },
       });
 
-      // Reset job status and re-enqueue
+      // Reset job status and re-process
       await prisma.job.update({
         where: { id: job.id },
         data: { status: "pending" },
       });
 
-      const queue = getJobQueue();
-      await queue.add("generate", { jobId: job.id });
+      // Fire-and-forget: process inline without blocking the response
+      processJobInline(job.id).catch((err) =>
+        console.error(`Regeneration failed for job ${job.id}:`, err),
+      );
 
       return json({ success: true });
     }

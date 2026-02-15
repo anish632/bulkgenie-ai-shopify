@@ -3,11 +3,11 @@
 client_id = "e1a5a6d2338836c37405d2e21b8e098d"
 name = "BulkGenie AI"
 handle = "bulkgenie-ai"
-application_url = "https://amount-excluded-lovely-threshold.trycloudflare.com"
+application_url = "https://bulkgenie.fly.dev"
 embedded = true
 
 # [app_preferences]
-# url = "https://YOUR_APP_URL/app/settings"
+# url = "https://bulkgenie.fly.dev/app/settings"
 
 [webhooks]
 api_version = "2026-01"
@@ -39,4 +39,8 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://amount-excluded-lovely-threshold.trycloudflare.com/auth/callback" ]
+redirect_urls = [
+  "https://bulkgenie.fly.dev/auth/callback",
+  "https://bulkgenie.fly.dev/auth/shopify/callback",
+  "https://bulkgenie.fly.dev/api/auth/callback"
+]
