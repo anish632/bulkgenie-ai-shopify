@@ -6,6 +6,8 @@ import {
   useSubmit,
   useRevalidator,
   useActionData,
+  useRouteError,
+  isRouteErrorResponse,
 } from "@remix-run/react";
 import {
   Page,
@@ -50,23 +52,38 @@ interface JobItemData {
 }
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const { jobId } = params;
+  try {
+    const { session } = await authenticate.admin(request);
+    const { jobId } = params;
 
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: {
-      items: {
-        orderBy: { createdAt: "asc" },
+    if (!jobId) {
+      throw new Response("Job ID is required", { status: 400 });
+    }
+
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+      include: {
+        items: {
+          orderBy: { createdAt: "asc" },
+        },
       },
-    },
-  });
+    });
 
-  if (!job || job.shopDomain !== session.shop) {
-    throw new Response("Job not found", { status: 404 });
+    if (!job || job.shopDomain !== session.shop) {
+      throw new Response("Job not found", { status: 404 });
+    }
+
+    return json({ job });
+  } catch (error) {
+    console.error("[app.jobs.$jobId] Loader error:", error);
+    if (error instanceof Response) {
+      throw error;
+    }
+    throw new Response("Failed to load job details", {
+      status: 500,
+      statusText: error instanceof Error ? error.message : "Unknown error",
+    });
   }
-
-  return json({ job });
 };
 
 export const action = async ({ params, request }: ActionFunctionArgs) => {
@@ -776,6 +793,31 @@ export default function JobReviewPage() {
             {rowMarkup}
           </IndexTable>
         </Card>
+      </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  let errorMessage = "An unexpected error occurred";
+  let errorStatus = 500;
+  
+  if (isRouteErrorResponse(error)) {
+    errorStatus = error.status;
+    errorMessage = error.statusText || error.data;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page title="Job Error" backAction={{ url: "/app" }}>
+      <Banner tone="critical" title={`Error ${errorStatus}`}>
+        <p>{errorMessage}</p>
+      </Banner>
+      <BlockStack gap="400">
+        <Button url="/app">Return to Dashboard</Button>
       </BlockStack>
     </Page>
   );

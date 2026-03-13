@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
+import { useLoaderData, useSubmit, useActionData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -81,20 +81,21 @@ const PLANS = [
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
-  const url = new URL(request.url);
-  const confirmedPlan = url.searchParams.get("confirmed");
+  try {
+    const { session } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const url = new URL(request.url);
+    const confirmedPlan = url.searchParams.get("confirmed");
 
-  const shop = await prisma.shop.upsert({
-    where: { shopDomain },
-    update: {},
-    create: { shopDomain },
-  });
+    const shop = await prisma.shop.upsert({
+      where: { shopDomain },
+      update: {},
+      create: { shopDomain },
+    });
 
-  // Handle return from Shopify billing confirmation
-  let confirmationMessage: string | null = null;
-  if (confirmedPlan) {
+    // Handle return from Shopify billing confirmation
+    let confirmationMessage: string | null = null;
+    if (confirmedPlan) {
     const plan = PLANS.find((p) => p.id === confirmedPlan);
     if (plan) {
       await prisma.shop.update({
@@ -128,7 +129,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shop.usageResetDate = now;
   }
 
-  return json({ shop, confirmationMessage });
+    return json({ shop, confirmationMessage });
+  } catch (error) {
+    console.error("[app.billing] Loader error:", error);
+    throw new Response("Failed to load billing information", {
+      status: 500,
+      statusText: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -367,6 +375,29 @@ export default function BillingPage() {
             </InlineGrid>
           </Layout.Section>
         </Layout>
+      </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  let errorMessage = "An unexpected error occurred";
+  
+  if (isRouteErrorResponse(error)) {
+    errorMessage = error.statusText || error.data;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page title="Billing & Usage" backAction={{ url: "/app" }}>
+      <Banner tone="critical" title="Error loading billing information">
+        <p>{errorMessage}</p>
+      </Banner>
+      <BlockStack gap="400">
+        <Button url="/app">Return to Dashboard</Button>
       </BlockStack>
     </Page>
   );

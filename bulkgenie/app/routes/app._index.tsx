@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useNavigate, useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -14,6 +14,7 @@ import {
   DataTable,
   EmptyState,
   InlineGrid,
+  Banner,
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 
@@ -21,8 +22,9 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
+  try {
+    const { session } = await authenticate.admin(request);
+    const shopDomain = session.shop;
 
   // Ensure shop record exists
   const shop = await prisma.shop.upsert({
@@ -57,10 +59,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   });
 
-  return json({
-    shop,
-    recentJobs,
-  });
+    return json({
+      shop,
+      recentJobs,
+    });
+  } catch (error) {
+    console.error("[app._index] Loader error:", error);
+    throw new Response("Failed to load dashboard data", {
+      status: 500,
+      statusText: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 };
 
 export default function Index() {
@@ -204,6 +213,29 @@ export default function Index() {
             </Card>
           </Layout.Section>
         </Layout>
+      </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  let errorMessage = "An unexpected error occurred";
+  
+  if (isRouteErrorResponse(error)) {
+    errorMessage = error.statusText || error.data;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page title="Dashboard Error">
+      <Banner tone="critical" title="Error loading dashboard">
+        <p>{errorMessage}</p>
+      </Banner>
+      <BlockStack gap="400">
+        <Button url="/app">Refresh</Button>
       </BlockStack>
     </Page>
   );

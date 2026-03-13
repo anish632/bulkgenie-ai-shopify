@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData } from "@remix-run/react";
+import { useLoaderData, useSubmit, useActionData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -24,21 +24,29 @@ import prisma from "../db.server";
 import { encrypt } from "../services/encryption.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
+  try {
+    const { session } = await authenticate.admin(request);
+    const shopDomain = session.shop;
 
-  const shop = await prisma.shop.upsert({
-    where: { shopDomain },
-    update: {},
-    create: { shopDomain },
-  });
+    const shop = await prisma.shop.upsert({
+      where: { shopDomain },
+      update: {},
+      create: { shopDomain },
+    });
 
-  return json({
-    shop: {
-      ...shop,
-      byokApiKey: shop.byokApiKey ? "••••••••" : "",
-    },
-  });
+    return json({
+      shop: {
+        ...shop,
+        byokApiKey: shop.byokApiKey ? "••••••••" : "",
+      },
+    });
+  } catch (error) {
+    console.error("[app.settings] Loader error:", error);
+    throw new Response("Failed to load settings", {
+      status: 500,
+      statusText: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -351,6 +359,29 @@ export default function SettingsPage() {
             </Card>
           </Layout.AnnotatedSection>
         </Layout>
+      </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  let errorMessage = "An unexpected error occurred";
+  
+  if (isRouteErrorResponse(error)) {
+    errorMessage = error.statusText || error.data;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page title="Settings" backAction={{ url: "/app" }}>
+      <Banner tone="critical" title="Error loading settings">
+        <p>{errorMessage}</p>
+      </Banner>
+      <BlockStack gap="400">
+        <Button url="/app">Return to Dashboard</Button>
       </BlockStack>
     </Page>
   );

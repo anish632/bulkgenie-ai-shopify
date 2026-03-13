@@ -6,6 +6,8 @@ import {
   useActionData,
   useSubmit,
   useNavigation,
+  useRouteError,
+  isRouteErrorResponse,
 } from "@remix-run/react";
 import {
   Page,
@@ -45,18 +47,19 @@ interface ShopifyProduct {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
-  const url = new URL(request.url);
-  const cursor = url.searchParams.get("cursor") || undefined;
-  const search = url.searchParams.get("search") || undefined;
+  try {
+    const { admin, session } = await authenticate.admin(request);
+    const shopDomain = session.shop;
+    const url = new URL(request.url);
+    const cursor = url.searchParams.get("cursor") || undefined;
+    const search = url.searchParams.get("search") || undefined;
 
-  const shop = await prisma.shop.findUnique({ where: { shopDomain } });
-  const defaultFields = shop?.defaultFields
-    ? JSON.parse(shop.defaultFields)
-    : ["description", "seoTitle", "seoDescription", "altText"];
+    const shop = await prisma.shop.findUnique({ where: { shopDomain } });
+    const defaultFields = shop?.defaultFields
+      ? JSON.parse(shop.defaultFields)
+      : ["description", "seoTitle", "seoDescription", "altText"];
 
-  const response = await admin.graphql(
+    const response = await admin.graphql(
     `#graphql
     query getProducts($first: Int!, $after: String, $query: String) {
       products(first: $first, after: $after, query: $query) {
@@ -102,21 +105,33 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     },
   );
 
-  const responseJson = await response.json();
-  const products = responseJson.data!.products;
+    const responseJson = await response.json();
+    
+    if (!responseJson.data?.products) {
+      throw new Error("Failed to fetch products from Shopify");
+    }
+    
+    const products = responseJson.data.products;
 
-  return json({
-    products: products.edges.map(
-      (e: { cursor: string; node: ShopifyProduct }) => ({
-        ...e.node,
-        cursor: e.cursor,
-      }),
-    ),
-    pageInfo: products.pageInfo,
-    defaultFields,
-    shopTier: shop?.tier || "free",
-    monthlyUsage: shop?.monthlyUsage || 0,
-  });
+    return json({
+      products: products.edges.map(
+        (e: { cursor: string; node: ShopifyProduct }) => ({
+          ...e.node,
+          cursor: e.cursor,
+        }),
+      ),
+      pageInfo: products.pageInfo,
+      defaultFields,
+      shopTier: shop?.tier || "free",
+      monthlyUsage: shop?.monthlyUsage || 0,
+    });
+  } catch (error) {
+    console.error("[app.generate] Loader error:", error);
+    throw new Response("Failed to load products", {
+      status: 500,
+      statusText: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -393,6 +408,29 @@ export default function GeneratePage() {
             </Layout.Section>
           )}
         </Layout>
+      </BlockStack>
+    </Page>
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+  
+  let errorMessage = "An unexpected error occurred";
+  
+  if (isRouteErrorResponse(error)) {
+    errorMessage = error.statusText || error.data;
+  } else if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+
+  return (
+    <Page title="Generate Content" backAction={{ url: "/app" }}>
+      <Banner tone="critical" title="Error loading products">
+        <p>{errorMessage}</p>
+      </Banner>
+      <BlockStack gap="400">
+        <Button url="/app">Return to Dashboard</Button>
       </BlockStack>
     </Page>
   );
