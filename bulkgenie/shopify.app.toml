@@ -3,33 +3,33 @@
 client_id = "e1a5a6d2338836c37405d2e21b8e098d"
 name = "BulkGenie AI"
 handle = "bulkgenie-ai"
-application_url = "https://bulkgenie.fly.dev"
+application_url = "https://bulkgenie-ai-shopify.vercel.app"
 embedded = true
 
-# [app_preferences]
-# url = "https://bulkgenie.fly.dev/app/settings"
+[app_preferences]
+url = "https://bulkgenie-ai-shopify.vercel.app/app/settings"
 
 [webhooks]
 api_version = "2026-01"
 
   [[webhooks.subscriptions]]
   topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
+  uri = "https://bulkgenie-ai-shopify.vercel.app/webhooks/app/uninstalled"
 
   [[webhooks.subscriptions]]
   topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+  uri = "https://bulkgenie-ai-shopify.vercel.app/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/data_request"
+  uri = "https://bulkgenie-ai-shopify.vercel.app/webhooks/customers/data_request"
   compliance_topics = [ "customers/data_request" ]
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/redact"
+  uri = "https://bulkgenie-ai-shopify.vercel.app/webhooks/customers/redact"
   compliance_topics = [ "customers/redact" ]
 
   [[webhooks.subscriptions]]
-  uri = "/webhooks/shop/redact"
+  uri = "https://bulkgenie-ai-shopify.vercel.app/webhooks/shop/redact"
   compliance_topics = [ "shop/redact" ]
 
 [access_scopes]
@@ -40,7 +40,7 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://bulkgenie.fly.dev/auth/callback",
-  "https://bulkgenie.fly.dev/auth/shopify/callback",
-  "https://bulkgenie.fly.dev/api/auth/callback"
+  "https://bulkgenie-ai-shopify.vercel.app/auth/callback",
+  "https://bulkgenie-ai-shopify.vercel.app/auth/shopify/callback",
+  "https://bulkgenie-ai-shopify.vercel.app/api/auth/callback"
 ]

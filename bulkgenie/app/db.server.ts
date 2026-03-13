@@ -1,31 +1,34 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaLibSQL } from "@prisma/adapter-libsql/web";
+import { createClient } from "@libsql/client/web";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
 
 declare global {
-  var prismaGlobal: PrismaClient;
+  var prismaGlobal: PrismaClient | undefined;
 }
 
 function buildPrismaClient(): PrismaClient {
-  const rawUrl = process.env.TURSO_DATABASE_URL;
+  const tursoUrl = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
 
-  if (rawUrl && authToken) {
-    // Convert libsql:// to https:// for the web/HTTP adapter
-    const url = rawUrl.replace(/^libsql:\/\//, "https://");
-    const adapter = new PrismaLibSQL({ url, authToken });
+  if (tursoUrl && authToken) {
+    // Use Turso with libSQL adapter
+    const libsql = createClient({
+      url: tursoUrl,
+      authToken: authToken,
+    });
+    const adapter = new PrismaLibSQL(libsql);
     return new PrismaClient({ adapter });
   }
 
-  // Fallback to default (local SQLite for dev)
+  // Fallback to default DATABASE_URL (local SQLite for dev)
   return new PrismaClient();
 }
 
-if (process.env.NODE_ENV !== "production") {
-  if (!global.prismaGlobal) {
-    global.prismaGlobal = buildPrismaClient();
-  }
+// Singleton pattern for both dev and production
+if (!global.prismaGlobal) {
+  global.prismaGlobal = buildPrismaClient();
 }
 
-const prisma = global.prismaGlobal ?? buildPrismaClient();
+const prisma = global.prismaGlobal;
 
 export default prisma;

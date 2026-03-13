@@ -22,9 +22,9 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>BulkGenie AI - Intelligent Product Content at Scale</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Generate high-quality product descriptions, SEO titles, meta descriptions, and alt text for hundreds of products in minutes using AI.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -40,16 +40,13 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Bulk AI Content Generation</strong>. Generate descriptions, SEO titles, meta descriptions, and image alt text for all your products at once.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Brand Voice Training</strong>. Train the AI on your existing products to match your unique brand voice and style.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Review & Approve</strong>. Review all AI-generated content before publishing, with easy editing and bulk approval tools.
           </li>
         </ul>
       </div>
