@@ -61,15 +61,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const byokApiKey = formData.get("byokApiKey") as string;
 
       const updateData: Record<string, unknown> = { aiProvider };
-      if (
-        byokApiKey &&
-        byokApiKey !== "••••••••" &&
-        (aiProvider === "byok_openai" || aiProvider === "byok_anthropic")
-      ) {
+      if (byokApiKey && byokApiKey !== "••••••••") {
         updateData.byokApiKey = encrypt(byokApiKey);
-      }
-      if (aiProvider === "cloud") {
-        updateData.byokApiKey = null;
       }
 
       await prisma.shop.update({
@@ -138,6 +131,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             productTitle: "Test Product",
             fieldsToGenerate: ["seoTitle"],
           });
+        } else if (aiProvider === "byok_kimi") {
+          const { OpenAIProvider } = await import(
+            "../services/ai/openai-provider"
+          );
+          const provider = new OpenAIProvider(byokApiKey, "moonshot-v1-8k", "https://api.moonshot.cn/v1");
+          await provider.generate({
+            productTitle: "Test Product",
+            fieldsToGenerate: ["seoTitle"],
+          });
+        } else if (aiProvider === "byok_mistral") {
+          const { OpenAIProvider } = await import(
+            "../services/ai/openai-provider"
+          );
+          const provider = new OpenAIProvider(byokApiKey, "mistral-small-latest", "https://api.mistral.ai/v1");
+          await provider.generate({
+            productTitle: "Test Product",
+            fieldsToGenerate: ["seoTitle"],
+          });
         }
         return json({ success: true, message: "API key works!" });
       } catch (error) {
@@ -161,7 +172,8 @@ export default function SettingsPage() {
   const submit = useSubmit();
   const shopifyBridge = useAppBridge();
 
-  const [aiProvider, setAiProvider] = useState(shop.aiProvider);
+  const initialProvider = shop.aiProvider === "cloud" ? "byok_anthropic" : shop.aiProvider;
+  const [aiProvider, setAiProvider] = useState(initialProvider);
   const [byokApiKey, setByokApiKey] = useState(shop.byokApiKey || "");
   const [brandVoice, setBrandVoice] = useState(shop.brandVoice || "");
   const [targetLanguage, setTargetLanguage] = useState(
@@ -206,9 +218,6 @@ export default function SettingsPage() {
     submit(formData, { method: "post" });
   }, [targetLanguage, descriptionLength, defaultFields, submit]);
 
-  const isByok =
-    aiProvider === "byok_openai" || aiProvider === "byok_anthropic";
-
   return (
     <Page title="Settings" backAction={{ url: "/app" }}>
       <BlockStack gap="500">
@@ -233,50 +242,65 @@ export default function SettingsPage() {
           {/* AI Provider Section */}
           <Layout.AnnotatedSection
             title="AI Provider"
-            description="Choose how AI content is generated. Use BulkGenie AI Cloud or bring your own API key."
+            description="BulkGenie uses your own API key to generate content. Choose your preferred AI provider below."
           >
             <Card>
               <BlockStack gap="400">
                 <RadioButton
-                  label="BulkGenie AI Cloud (default)"
-                  helpText="Uses our AI infrastructure. Included with your plan."
-                  checked={aiProvider === "cloud"}
-                  id="cloud"
-                  name="aiProvider"
-                  onChange={() => setAiProvider("cloud")}
-                />
-                <RadioButton
-                  label="Bring Your Own Key — Anthropic"
-                  helpText="Use your own Anthropic API key for Claude models."
+                  label="Anthropic (Claude)"
+                  helpText="Uses Claude models for high-quality product content."
                   checked={aiProvider === "byok_anthropic"}
                   id="byok_anthropic"
                   name="aiProvider"
                   onChange={() => setAiProvider("byok_anthropic")}
                 />
                 <RadioButton
-                  label="Bring Your Own Key — OpenAI"
-                  helpText="Use your own OpenAI API key for GPT models."
+                  label="OpenAI (GPT)"
+                  helpText="Uses GPT models for product content generation."
                   checked={aiProvider === "byok_openai"}
                   id="byok_openai"
                   name="aiProvider"
                   onChange={() => setAiProvider("byok_openai")}
                 />
+                <RadioButton
+                  label="Mistral AI"
+                  helpText="Uses Mistral models. Free tier available at console.mistral.ai."
+                  checked={aiProvider === "byok_mistral"}
+                  id="byok_mistral"
+                  name="aiProvider"
+                  onChange={() => setAiProvider("byok_mistral")}
+                />
+                <RadioButton
+                  label="Kimi (Moonshot AI)"
+                  helpText="Uses Kimi models via Moonshot AI API."
+                  checked={aiProvider === "byok_kimi"}
+                  id="byok_kimi"
+                  name="aiProvider"
+                  onChange={() => setAiProvider("byok_kimi")}
+                />
 
-                {isByok && (
-                  <BlockStack gap="300">
-                    <TextField
-                      label="API Key"
-                      value={byokApiKey}
-                      onChange={setByokApiKey}
-                      type="password"
-                      autoComplete="off"
-                      helpText="Your key is encrypted and stored securely."
-                    />
-                    <InlineStack gap="200">
-                      <Button onClick={handleTestKey}>Test Key</Button>
-                    </InlineStack>
-                  </BlockStack>
-                )}
+                <BlockStack gap="300">
+                  <TextField
+                    label="API Key"
+                    value={byokApiKey}
+                    onChange={setByokApiKey}
+                    type="password"
+                    autoComplete="off"
+                    placeholder={aiProvider === "byok_anthropic" ? "sk-ant-..." : "sk-..."}
+                    helpText={
+                      aiProvider === "byok_anthropic"
+                        ? "Get your key at console.anthropic.com. Your key is encrypted and stored securely."
+                        : aiProvider === "byok_mistral"
+                          ? "Get your free key at console.mistral.ai. Your key is encrypted and stored securely."
+                          : aiProvider === "byok_kimi"
+                            ? "Get your key at platform.moonshot.cn. Your key is encrypted and stored securely."
+                            : "Get your key at platform.openai.com. Your key is encrypted and stored securely."
+                    }
+                  />
+                  <InlineStack gap="200">
+                    <Button onClick={handleTestKey}>Test Key</Button>
+                  </InlineStack>
+                </BlockStack>
 
                 <Button variant="primary" onClick={handleSaveProvider}>
                   Save Provider

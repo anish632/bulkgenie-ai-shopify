@@ -5,34 +5,28 @@ import { OpenAIProvider } from "./openai-provider";
 import { decrypt } from "../encryption.server";
 
 export function getAIProvider(shop: Shop): AIProvider {
+  if (!shop.byokApiKey) {
+    throw new Error(
+      "No API key configured. Go to Settings to add your API key (Anthropic, OpenAI, or Mistral).",
+    );
+  }
+
+  const key = decrypt(shop.byokApiKey);
+
   switch (shop.aiProvider) {
-    case "cloud":
-      return new AnthropicProvider(
-        process.env.ANTHROPIC_API_KEY!,
-        shop.tier === "scale"
-          ? "claude-sonnet-4-5-20250929"
-          : "claude-haiku-4-5-20251001",
-      );
-
-    case "byok_anthropic": {
-      if (!shop.byokApiKey) throw new Error("No API key configured");
-      const key = decrypt(shop.byokApiKey);
+    case "byok_anthropic":
       return new AnthropicProvider(key, "claude-sonnet-4-5-20250929");
-    }
 
-    case "byok_openai": {
-      if (!shop.byokApiKey) throw new Error("No API key configured");
-      const key = decrypt(shop.byokApiKey);
+    case "byok_openai":
       return new OpenAIProvider(key);
-    }
 
-    case "ondevice":
-      throw new Error("On-device inference should not reach the server");
+    case "byok_kimi":
+      return new OpenAIProvider(key, "moonshot-v1-8k", "https://api.moonshot.cn/v1");
+
+    case "byok_mistral":
+      return new OpenAIProvider(key, "mistral-small-latest", "https://api.mistral.ai/v1");
 
     default:
-      return new AnthropicProvider(
-        process.env.ANTHROPIC_API_KEY!,
-        "claude-haiku-4-5-20251001",
-      );
+      return new AnthropicProvider(key, "claude-sonnet-4-5-20250929");
   }
 }

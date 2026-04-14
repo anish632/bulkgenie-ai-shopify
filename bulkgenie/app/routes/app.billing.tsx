@@ -32,7 +32,7 @@ const PLANS = [
     productsPerMonth: 10,
     features: [
       "10 products/month",
-      "Cloud AI generation",
+      "Bring your own API key",
       "All content fields",
     ],
   },
@@ -44,7 +44,7 @@ const PLANS = [
     productsPerMonth: 100,
     features: [
       "100 products/month",
-      "Cloud AI generation",
+      "Bring your own API key",
       "All content fields",
       "Priority processing",
     ],
@@ -57,8 +57,7 @@ const PLANS = [
     productsPerMonth: 500,
     features: [
       "500 products/month",
-      "Cloud AI generation",
-      "Bring Your Own Key",
+      "Bring your own API key",
       "Brand voice training",
       "All content fields",
     ],
@@ -71,8 +70,7 @@ const PLANS = [
     productsPerMonth: Infinity,
     features: [
       "Unlimited products",
-      "Premium AI models",
-      "Bring Your Own Key",
+      "Bring your own API key",
       "Brand voice training",
       "All content fields",
       "Priority support",
@@ -82,10 +80,11 @@ const PLANS = [
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
-    const { session } = await authenticate.admin(request);
+    const { admin, session } = await authenticate.admin(request);
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const confirmedPlan = url.searchParams.get("confirmed");
+    const chargeId = url.searchParams.get("charge_id");
 
     const shop = await prisma.shop.upsert({
       where: { shopDomain },
@@ -93,43 +92,60 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       create: { shopDomain },
     });
 
-    // Handle return from Shopify billing confirmation
+    // Query Shopify for active subscriptions to sync tier
     let confirmationMessage: string | null = null;
-    if (confirmedPlan) {
-    const plan = PLANS.find((p) => p.id === confirmedPlan);
-    if (plan) {
+    const activeSubscription = await getActiveSubscription(admin);
+
+    if (confirmedPlan && chargeId) {
+      // Merchant returning from Shopify billing confirmation
+      const plan = PLANS.find((p) => p.id === confirmedPlan);
+      if (plan && activeSubscription) {
+        // Subscription is confirmed and active on Shopify's side
+        await prisma.shop.update({
+          where: { shopDomain },
+          data: { tier: confirmedPlan },
+        });
+        confirmationMessage = `Successfully subscribed to ${plan.name} plan!`;
+        const updatedShop = await prisma.shop.findUnique({
+          where: { shopDomain },
+        });
+        return json({
+          shop: updatedShop || shop,
+          confirmationMessage,
+          activeSubscription,
+        });
+      } else if (plan && !activeSubscription) {
+        // Merchant declined the charge — don't update tier
+        confirmationMessage = "Subscription was not confirmed. Your plan has not changed.";
+      }
+    } else {
+      // Sync local tier with Shopify subscription state
+      const syncedTier = syncTierFromSubscription(activeSubscription);
+      if (syncedTier !== shop.tier) {
+        await prisma.shop.update({
+          where: { shopDomain },
+          data: { tier: syncedTier },
+        });
+        shop.tier = syncedTier;
+      }
+    }
+
+    // Reset usage if billing cycle has passed (30 days)
+    const now = new Date();
+    const resetDate = new Date(shop.usageResetDate);
+    const daysSinceReset = Math.floor(
+      (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysSinceReset >= 30) {
       await prisma.shop.update({
         where: { shopDomain },
-        data: { tier: confirmedPlan },
+        data: { monthlyUsage: 0, usageResetDate: now },
       });
-      confirmationMessage = `Successfully subscribed to ${plan.name} plan!`;
-      // Re-fetch shop after update
-      const updatedShop = await prisma.shop.findUnique({
-        where: { shopDomain },
-      });
-      return json({
-        shop: updatedShop || shop,
-        confirmationMessage,
-      });
+      shop.monthlyUsage = 0;
+      shop.usageResetDate = now;
     }
-  }
 
-  // Reset usage if billing cycle has passed (30 days)
-  const now = new Date();
-  const resetDate = new Date(shop.usageResetDate);
-  const daysSinceReset = Math.floor(
-    (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  if (daysSinceReset >= 30) {
-    await prisma.shop.update({
-      where: { shopDomain },
-      data: { monthlyUsage: 0, usageResetDate: now },
-    });
-    shop.monthlyUsage = 0;
-    shop.usageResetDate = now;
-  }
-
-    return json({ shop, confirmationMessage });
+    return json({ shop, confirmationMessage, activeSubscription });
   } catch (error) {
     console.error("[app.billing] Loader error:", error);
     throw new Response("Failed to load billing information", {
@@ -138,6 +154,56 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 };
+
+async function getActiveSubscription(admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"]) {
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query {
+        currentAppInstallation {
+          activeSubscriptions {
+            id
+            name
+            status
+            lineItems {
+              plan {
+                pricingDetails {
+                  ... on AppRecurringPricing {
+                    price {
+                      amount
+                      currencyCode
+                    }
+                    interval
+                  }
+                }
+              }
+            }
+          }
+        }
+      }`,
+    );
+    const data = await response.json();
+    const subscriptions = data.data?.currentAppInstallation?.activeSubscriptions || [];
+    return subscriptions.length > 0 ? subscriptions[0] : null;
+  } catch (error) {
+    console.error("[billing] Failed to query active subscriptions:", error);
+    return null;
+  }
+}
+
+function syncTierFromSubscription(subscription: { name: string; status: string } | null): string {
+  if (!subscription || subscription.status !== "ACTIVE") {
+    return "free";
+  }
+  // Extract plan ID from subscription name (e.g. "BulkGenie AI Starter (Monthly)")
+  const name = subscription.name.toLowerCase();
+  for (const plan of PLANS) {
+    if (plan.id !== "free" && name.includes(plan.id)) {
+      return plan.id;
+    }
+  }
+  return "free";
+}
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -151,7 +217,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const plan = PLANS.find((p) => p.id === planId);
 
     if (!plan || plan.price === 0) {
-      // Downgrade to free — cancel existing subscription
+      // Downgrade to free — cancel existing subscription on Shopify
+      const activeSubscription = await getActiveSubscription(admin);
+      if (activeSubscription) {
+        await admin.graphql(
+          `#graphql
+          mutation cancelSubscription($id: ID!) {
+            appSubscriptionCancel(id: $id) {
+              appSubscription { id }
+              userErrors { field message }
+            }
+          }`,
+          { variables: { id: activeSubscription.id } },
+        );
+      }
       await prisma.shop.update({
         where: { shopDomain },
         data: { tier: "free" },
@@ -163,15 +242,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const price = isAnnual ? plan.annualPrice : plan.price;
     const planLabel = `BulkGenie AI ${plan.name} (${isAnnual ? "Annual" : "Monthly"})`;
 
+    // Cancel existing subscription before creating a new one (plan change)
+    const activeSubscription = await getActiveSubscription(admin);
+    if (activeSubscription) {
+      await admin.graphql(
+        `#graphql
+        mutation cancelSubscription($id: ID!) {
+          appSubscriptionCancel(id: $id) {
+            appSubscription { id }
+            userErrors { field message }
+          }
+        }`,
+        { variables: { id: activeSubscription.id } },
+      );
+    }
+
+    // Determine the shop's current trial status — don't re-offer trial if already used
+    const trialDays = activeSubscription ? 0 : TRIAL_DAYS;
+
     // Create Shopify billing subscription
     const response = await admin.graphql(
       `#graphql
-      mutation createSubscription($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $test: Boolean) {
+      mutation createSubscription($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $replacementBehavior: AppSubscriptionReplacementBehavior, $test: Boolean) {
         appSubscriptionCreate(
           name: $name
           lineItems: $lineItems
           returnUrl: $returnUrl
           trialDays: $trialDays
+          replacementBehavior: $replacementBehavior
           test: $test
         ) {
           appSubscription {
@@ -200,8 +298,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               },
             },
           ],
-          returnUrl: `https://${shopDomain}/admin/apps/bulkgenie/app/billing?confirmed=${planId}`,
-          trialDays: TRIAL_DAYS,
+          returnUrl: `https://${shopDomain}/admin/apps/bulkgenie-ai/app/billing?confirmed=${planId}`,
+          trialDays,
+          replacementBehavior: "APPLY_IMMEDIATELY" as const,
           test: process.env.NODE_ENV !== "production",
         },
       },
@@ -225,7 +324,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function BillingPage() {
-  const { shop, confirmationMessage } = useLoaderData<typeof loader>();
+  const { shop, confirmationMessage, activeSubscription } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
   const [billingInterval, setBillingInterval] = useState("EVERY_30_DAYS");
@@ -363,9 +462,11 @@ export default function BillingPage() {
                           onClick={() => handleSubscribe(plan.id)}
                           fullWidth
                         >
-                          {plan.price > currentPlan.price
-                            ? "Start Free Trial"
-                            : "Downgrade"}
+                          {plan.price === 0
+                            ? "Downgrade to Free"
+                            : plan.price > currentPlan.price
+                              ? (activeSubscription ? "Upgrade" : "Start Free Trial")
+                              : "Switch Plan"}
                         </Button>
                       )}
                     </BlockStack>

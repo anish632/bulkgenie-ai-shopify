@@ -29,7 +29,6 @@ import { ImageIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { processJobInline } from "../services/queue/inline-processor.server";
 
 interface ShopifyProduct {
   id: string;
@@ -124,6 +123,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       defaultFields,
       shopTier: shop?.tier || "free",
       monthlyUsage: shop?.monthlyUsage || 0,
+      hasApiKey: !!shop?.byokApiKey,
     });
   } catch (error) {
     console.error("[app.generate] Loader error:", error);
@@ -153,6 +153,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Shop not found" }, { status: 404 });
   }
 
+  if (!shop.byokApiKey) {
+    return json(
+      { error: "No API key configured. Please add your API key in Settings before generating content." },
+      { status: 400 },
+    );
+  }
+
   const tierLimits: Record<string, number> = {
     free: 10,
     starter: 100,
@@ -172,11 +179,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
   }
 
-  let job;
   try {
-    job = await prisma.job.create({
+    const job = await prisma.job.create({
       data: {
         shopDomain,
+        status: "processing",
         totalProducts: selectedProducts.length,
         generateFields: JSON.stringify(fields),
         aiProvider: shop.aiProvider,
@@ -194,16 +201,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       data: { monthlyUsage: { increment: selectedProducts.length } },
     });
 
-    // Process the job inline (synchronously)
-    await processJobInline(job.id);
+    // Redirect immediately — processing happens via job page polling
+    return redirect(`/app/jobs/${job.id}`);
   } catch (error) {
     console.error("[Generate] Error:", error);
-
-    // If the job was created but processing failed, still redirect to show status
-    if (job) {
-      return redirect(`/app/jobs/${job.id}`);
-    }
-
     return json(
       {
         error:
@@ -214,12 +215,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       { status: 500 },
     );
   }
-
-  return redirect(`/app/jobs/${job.id}`);
 };
 
 export default function GeneratePage() {
-  const { products, pageInfo, defaultFields, shopTier, monthlyUsage } =
+  const { products, pageInfo, defaultFields, shopTier, monthlyUsage, hasApiKey } =
     useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
@@ -329,6 +328,12 @@ export default function GeneratePage() {
   return (
     <Page title="Generate Content" backAction={{ url: "/app" }}>
       <BlockStack gap="500">
+        {!hasApiKey && (
+          <Banner tone="warning" title="API key required" action={{ content: "Go to Settings", url: "/app/settings" }}>
+            <p>Add your API key in Settings before generating content. Mistral AI offers a free tier.</p>
+          </Banner>
+        )}
+
         {actionData?.error && (
           <Banner tone="critical" title="Generation failed">
             <p>{actionData.error}</p>
