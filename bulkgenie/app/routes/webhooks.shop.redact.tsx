@@ -3,10 +3,10 @@ import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  try {
-    const { shop, topic } = await authenticate.webhook(request);
-    console.log(`Received ${topic} webhook for ${shop}`);
+  const { shop, topic } = await authenticate.webhook(request);
+  console.log(`Received ${topic} webhook for ${shop}`);
 
+  try {
     // Clean up all shop data
     // Delete job items first (foreign key constraint)
     const jobs = await db.job.findMany({
@@ -20,11 +20,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     await db.job.deleteMany({ where: { shopDomain: shop } });
     await db.shop.deleteMany({ where: { shopDomain: shop } });
-
-    return new Response(null, { status: 200 });
   } catch (error) {
-    console.error("[webhooks.shop.redact] Error:", error);
-    // Return 200 to acknowledge receipt even on error to avoid Shopify retries
-    return new Response(null, { status: 200 });
+    console.error("[webhooks.shop.redact] Error cleaning up data:", error);
   }
+
+  return new Response(null, { status: 200 });
 };

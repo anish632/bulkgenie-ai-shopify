@@ -7,8 +7,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   checks.SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY ? "set" : "MISSING";
   checks.SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET ? "set" : "MISSING";
   checks.SHOPIFY_APP_URL = process.env.SHOPIFY_APP_URL || "MISSING";
-  checks.TURSO_DATABASE_URL = process.env.TURSO_DATABASE_URL ? "set" : "MISSING";
-  checks.TURSO_AUTH_TOKEN = process.env.TURSO_AUTH_TOKEN ? "set" : "MISSING";
+  checks.DATABASE_URL = process.env.DATABASE_URL ? "set" : "MISSING";
   checks.NODE_ENV = process.env.NODE_ENV || "not set";
 
   // Test the shared prisma instance from db.server

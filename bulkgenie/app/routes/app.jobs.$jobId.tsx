@@ -31,8 +31,8 @@ import { ImageIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { updateProductInShopify } from "../services/shopify/products";
-import { processJobInline } from "../services/queue/inline-processor.server";
+import { updateProductInShopify, fetchProductFromShopify } from "../services/shopify/products";
+import { getAIProvider } from "../services/ai/factory";
 
 interface JobItemData {
   id: string;
@@ -49,6 +49,129 @@ interface JobItemData {
   editedSeoTitle: string | null;
   editedSeoDesc: string | null;
   errorMessage: string | null;
+}
+
+async function processOneItem(jobId: string, shopDomain: string): Promise<void> {
+  const pendingItem = await prisma.jobItem.findFirst({
+    where: { jobId, status: "pending" },
+    orderBy: { createdAt: "asc" },
+  });
+
+  if (!pendingItem) {
+    // No more pending items — mark job as completed
+    await prisma.job.update({
+      where: { id: jobId },
+      data: { status: "completed", completedAt: new Date() },
+    });
+    return;
+  }
+
+  const shop = await prisma.shop.findUnique({ where: { shopDomain } });
+  if (!shop) return;
+
+  const shopSession = await prisma.session.findFirst({
+    where: { shop: shopDomain },
+  });
+  if (!shopSession) return;
+
+  const job = await prisma.job.findUnique({ where: { id: jobId } });
+  if (!job) return;
+  const fields = JSON.parse(job.generateFields) as Array<
+    "description" | "seoTitle" | "seoDescription" | "altText"
+  >;
+
+  try {
+    const provider = getAIProvider(shop);
+    await prisma.jobItem.update({
+      where: { id: pendingItem.id },
+      data: { status: "processing" },
+    });
+
+    const product = await fetchProductFromShopify(
+      shopSession.accessToken,
+      shopDomain,
+      pendingItem.shopifyProductId,
+    );
+
+    // Store original content for undo
+    const imageAltTexts =
+      product.images?.edges?.reduce(
+        (acc: Record<string, string>, edge: { node: { altText?: string } }, i: number) => {
+          acc[`img_${i}`] = edge.node.altText || "";
+          return acc;
+        },
+        {} as Record<string, string>,
+      ) || {};
+
+    await prisma.jobItem.update({
+      where: { id: pendingItem.id },
+      data: {
+        originalDescription: product.descriptionHtml || "",
+        originalSeoTitle: product.seo?.title || "",
+        originalSeoDesc: product.seo?.description || "",
+        originalAltTexts: JSON.stringify(imageAltTexts),
+      },
+    });
+
+    const result = await provider.generate({
+      productTitle: product.title,
+      productType: product.productType || undefined,
+      vendor: product.vendor || undefined,
+      tags: product.tags || [],
+      existingDescription: product.descriptionHtml || undefined,
+      imageUrls:
+        product.images?.edges?.map((e: { node: { url: string } }) => e.node.url) || [],
+      brandVoice: shop.brandVoice || undefined,
+      targetLanguage: shop.targetLanguage || "en",
+      descriptionLength: (shop.descriptionLength as "short" | "medium" | "long") || "medium",
+      fieldsToGenerate: fields,
+    });
+
+    await prisma.jobItem.update({
+      where: { id: pendingItem.id },
+      data: {
+        status: "generated",
+        generatedDescription: result.description || null,
+        generatedSeoTitle: result.seoTitle || null,
+        generatedSeoDesc: result.seoDescription || null,
+        generatedAltTexts: result.altTexts ? JSON.stringify(result.altTexts) : null,
+      },
+    });
+
+    await prisma.job.update({
+      where: { id: jobId },
+      data: { processedCount: { increment: 1 } },
+    });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    console.error(`[JobLoader] Failed to process item ${pendingItem.id}:`, errMsg);
+    await prisma.jobItem.update({
+      where: { id: pendingItem.id },
+      data: {
+        status: "failed",
+        errorMessage: errMsg,
+      },
+    });
+    await prisma.job.update({
+      where: { id: jobId },
+      data: { failedCount: { increment: 1 }, processedCount: { increment: 1 } },
+    });
+
+    // If it's a config error (no API key), fail all remaining pending items too
+    if (errMsg.includes("No API key configured")) {
+      await prisma.jobItem.updateMany({
+        where: { jobId, status: "pending" },
+        data: { status: "failed", errorMessage: errMsg },
+      });
+      const remainingCount = await prisma.jobItem.count({
+        where: { jobId, status: "failed", errorMessage: errMsg },
+      });
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { status: "failed", completedAt: new Date() },
+      });
+    }
+  }
 }
 
 export const loader = async ({ params, request }: LoaderFunctionArgs) => {
@@ -71,6 +194,17 @@ export const loader = async ({ params, request }: LoaderFunctionArgs) => {
 
     if (!job || job.shopDomain !== session.shop) {
       throw new Response("Job not found", { status: 404 });
+    }
+
+    // Process one pending item per poll while job is processing
+    if (job.status === "processing") {
+      await processOneItem(jobId, session.shop);
+      // Re-fetch job after processing
+      const updatedJob = await prisma.job.findUnique({
+        where: { id: jobId },
+        include: { items: { orderBy: { createdAt: "asc" } } },
+      });
+      return json({ job: updatedJob || job });
     }
 
     return json({ job });
@@ -250,16 +384,11 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         },
       });
 
-      // Reset job status and re-process
+      // Set job back to processing — polling loader will pick it up
       await prisma.job.update({
         where: { id: job.id },
-        data: { status: "pending" },
+        data: { status: "processing" },
       });
-
-      // Fire-and-forget: process inline without blocking the response
-      processJobInline(job.id).catch((err) =>
-        console.error(`Regeneration failed for job ${job.id}:`, err),
-      );
 
       return json({ success: true });
     }

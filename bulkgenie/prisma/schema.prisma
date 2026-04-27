@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -30,7 +30,7 @@ model Session {
 model Shop {
   id               String   @id @default(cuid())
   shopDomain       String   @unique
-  aiProvider       String   @default("cloud") // "cloud" | "byok_openai" | "byok_anthropic" | "ondevice"
+  aiProvider       String   @default("byok_anthropic") // "byok_openai" | "byok_anthropic"
   byokApiKey       String? // encrypted, nullable
   brandVoice       String? // brand voice instructions text
   sampleProductIds String? // JSON array of product IDs used for voice training
