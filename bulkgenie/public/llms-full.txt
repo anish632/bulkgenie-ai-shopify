@@ -1,0 +1,47 @@
+# BulkGenie AI
+
+Website: https://bulkgenie.dasgroupllc.com/
+Company: DAS Group LLC
+Last updated: 2026-04-29
+
+## Summary
+
+BulkGenie AI is a Shopify app for batch-generating and reviewing product content. It is designed for stores that need to update product descriptions, SEO titles, meta descriptions, and image alt text across many products without losing review control.
+
+## Main job
+
+The product reduces repetitive catalog-editing work while keeping merchants in charge of approval. It is not just a prompt box for isolated copy generation; it is a bulk workflow with review and reversibility.
+
+## Who it is for
+
+- Shopify merchants
+- Ecommerce operators
+- Catalog managers
+- Teams working on SEO refreshes or large content cleanup projects
+
+## Core capabilities
+
+- Bulk-generate descriptions, SEO titles, meta descriptions, and alt text
+- Review generated output in a spreadsheet-style interface
+- Edit generated fields inline
+- Keep SEO constraints visible while reviewing
+- Configure brand voice
+- Undo published changes
+
+## Why merchants use it
+
+Manual catalog editing does not scale well. BulkGenie compresses repetitive content work into a faster workflow while preserving human review and publication control.
+
+## Fast answers
+
+### What does BulkGenie generate?
+
+Product descriptions, SEO titles, meta descriptions, and image alt text.
+
+### Does it publish automatically?
+
+The workflow is built around review before publish, so merchants can inspect changes before they go live.
+
+### Why is undo support important?
+
+Large catalog-wide edits need reversibility. Undo support makes bulk AI workflows safer for production stores.

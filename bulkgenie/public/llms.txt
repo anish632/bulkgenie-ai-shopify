@@ -1,0 +1,19 @@
+# BulkGenie AI
+
+> BulkGenie AI is a Shopify app that bulk-generates product descriptions, SEO titles, meta descriptions, and image alt text, then lets merchants review changes before publishing.
+
+## Primary pages
+
+- [Home](https://bulkgenie.dasgroupllc.com/): Product overview, workflow, features, and FAQ.
+- [Full context](https://bulkgenie.dasgroupllc.com/llms-full.txt): Expanded product summary for AI systems and partner review.
+
+## Fast answers
+
+- What it is: A Shopify bulk content and SEO workflow.
+- Who it is for: Merchants and operators managing large product catalogs.
+- Main job: Generate and review product content changes in batches.
+- Key differentiators: Spreadsheet review, brand voice controls, and undo support.
+
+## Contact
+
+- DAS Group LLC: https://dasgroupllc.com/
