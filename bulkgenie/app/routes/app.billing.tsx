@@ -84,7 +84,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const confirmedPlan = url.searchParams.get("confirmed");
-    const chargeId = url.searchParams.get("charge_id");
 
     const shop = await prisma.shop.upsert({
       where: { shopDomain },
@@ -94,18 +93,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     // Query Shopify for active subscriptions to sync tier
     let confirmationMessage: string | null = null;
-    const activeSubscription = await getActiveSubscription(admin);
+    const activeSubscription = await getActiveSubscription(
+      admin,
+      confirmedPlan || undefined,
+    );
 
-    if (confirmedPlan && chargeId) {
+    if (confirmedPlan) {
       // Merchant returning from Shopify billing confirmation
       const plan = PLANS.find((p) => p.id === confirmedPlan);
       if (plan && activeSubscription) {
-        // Subscription is confirmed and active on Shopify's side
+        const syncedTier = syncTierFromSubscription(activeSubscription);
         await prisma.shop.update({
           where: { shopDomain },
-          data: { tier: confirmedPlan },
+          data: { tier: syncedTier },
         });
-        confirmationMessage = `Successfully subscribed to ${plan.name} plan!`;
+        confirmationMessage =
+          syncedTier === confirmedPlan
+            ? `Successfully subscribed to ${plan.name} plan!`
+            : "Subscription confirmed. Your plan has been synced from Shopify.";
         const updatedShop = await prisma.shop.findUnique({
           where: { shopDomain },
         });
@@ -155,7 +160,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 };
 
-async function getActiveSubscription(admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"]) {
+async function getActiveSubscription(
+  admin: Awaited<ReturnType<typeof authenticate.admin>>["admin"],
+  preferredPlanId?: string,
+) {
   try {
     const response = await admin.graphql(
       `#graphql
@@ -184,6 +192,15 @@ async function getActiveSubscription(admin: Awaited<ReturnType<typeof authentica
     );
     const data = await response.json();
     const subscriptions = data.data?.currentAppInstallation?.activeSubscriptions || [];
+    if (preferredPlanId) {
+      const preferredSubscription = subscriptions.find(
+        (subscription: { name: string }) =>
+          subscription.name.toLowerCase().includes(preferredPlanId),
+      );
+      if (preferredSubscription) {
+        return preferredSubscription;
+      }
+    }
     return subscriptions.length > 0 ? subscriptions[0] : null;
   } catch (error) {
     console.error("[billing] Failed to query active subscriptions:", error);
@@ -203,6 +220,13 @@ function syncTierFromSubscription(subscription: { name: string; status: string }
     }
   }
   return "free";
+}
+
+function getBillingReturnUrl(request: Request, planId: string) {
+  const appUrl = process.env.SHOPIFY_APP_URL || new URL(request.url).origin;
+  const returnUrl = new URL("/app/billing", appUrl);
+  returnUrl.searchParams.set("confirmed", planId);
+  return returnUrl.toString();
 }
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -242,22 +266,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const price = isAnnual ? plan.annualPrice : plan.price;
     const planLabel = `BulkGenie AI ${plan.name} (${isAnnual ? "Annual" : "Monthly"})`;
 
-    // Cancel existing subscription before creating a new one (plan change)
     const activeSubscription = await getActiveSubscription(admin);
-    if (activeSubscription) {
-      await admin.graphql(
-        `#graphql
-        mutation cancelSubscription($id: ID!) {
-          appSubscriptionCancel(id: $id) {
-            appSubscription { id }
-            userErrors { field message }
-          }
-        }`,
-        { variables: { id: activeSubscription.id } },
-      );
-    }
-
-    // Determine the shop's current trial status — don't re-offer trial if already used
     const trialDays = activeSubscription ? 0 : TRIAL_DAYS;
 
     // Create Shopify billing subscription
@@ -298,7 +307,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
               },
             },
           ],
-          returnUrl: `https://${shopDomain}/admin/apps/bulkgenie-ai/app/billing?confirmed=${planId}`,
+          returnUrl: getBillingReturnUrl(request, planId),
           trialDays,
           replacementBehavior: "APPLY_IMMEDIATELY" as const,
           test: process.env.NODE_ENV !== "production",
