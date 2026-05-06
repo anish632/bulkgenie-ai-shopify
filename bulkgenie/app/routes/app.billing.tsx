@@ -1,7 +1,7 @@
-import { useCallback, useState } from "react";
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import { useState } from "react";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, useActionData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
+import { useLoaderData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -112,7 +112,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop.usageResetDate = now;
     }
 
-    return json({ shop, confirmationMessage, activeSubscription });
+    return json({
+      shop,
+      confirmationMessage,
+      activeSubscription,
+      managedPricingUrl: getManagedPricingUrl(shopDomain),
+    });
   } catch (error) {
     console.error("[app.billing] Loader error:", error);
     throw new Response("Failed to load billing information", {
@@ -170,29 +175,9 @@ async function getActiveSubscription(
   }
 }
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { redirect, session } = await authenticate.admin(request);
-  const formData = await request.formData();
-  const intent = formData.get("intent") as string;
-
-  if (intent === "subscribe") {
-    const planId = formData.get("planId") as string;
-    const plan = PLANS.find((p) => p.id === planId);
-
-    if (!plan) {
-      return json({ error: "Unknown plan" }, { status: 400 });
-    }
-
-    return redirect(getManagedPricingUrl(session.shop), { target: "_top" });
-  }
-
-  return json({ error: "Unknown action" }, { status: 400 });
-};
-
 export default function BillingPage() {
-  const { shop, confirmationMessage, activeSubscription } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const submit = useSubmit();
+  const { shop, confirmationMessage, activeSubscription, managedPricingUrl } =
+    useLoaderData<typeof loader>();
   const [billingInterval, setBillingInterval] = useState("EVERY_30_DAYS");
 
   const isAnnual = billingInterval === "ANNUAL";
@@ -202,17 +187,6 @@ export default function BillingPage() {
     limit === Infinity
       ? 0
       : Math.round((shop.monthlyUsage / limit) * 100);
-
-  const handleSubscribe = useCallback(
-    (planId: string) => {
-      const formData = new FormData();
-      formData.set("intent", "subscribe");
-      formData.set("planId", planId);
-      formData.set("interval", billingInterval);
-      submit(formData, { method: "post" });
-    },
-    [submit, billingInterval],
-  );
 
   const formatPrice = (plan: typeof PLANS[number]) => {
     if (plan.price === 0) return "Free";
@@ -228,14 +202,6 @@ export default function BillingPage() {
       <BlockStack gap="500">
         {confirmationMessage && (
           <Banner tone="success">{confirmationMessage}</Banner>
-        )}
-        {actionData && "message" in actionData && (
-          <Banner tone="success">{actionData.message}</Banner>
-        )}
-        {actionData && "error" in actionData && (
-          <Banner tone="critical">
-            {(actionData as { error: string }).error}
-          </Banner>
         )}
 
         {/* Current usage */}
@@ -325,7 +291,8 @@ export default function BillingPage() {
                               ? "primary"
                               : undefined
                           }
-                          onClick={() => handleSubscribe(plan.id)}
+                          url={managedPricingUrl}
+                          target="_top"
                           fullWidth
                         >
                           {plan.price === 0
