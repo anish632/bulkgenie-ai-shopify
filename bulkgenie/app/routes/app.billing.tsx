@@ -298,7 +298,7 @@ export default function BillingPage() {
                           {plan.price === 0
                             ? "Choose Free in Shopify"
                             : plan.price > currentPlan.price
-                              ? (activeSubscription ? "Upgrade in Shopify" : "Start Free Trial")
+                              ? (activeSubscription ? "Upgrade in Shopify" : "Start Trial in Shopify")
                               : "Switch in Shopify"}
                         </Button>
                       )}
