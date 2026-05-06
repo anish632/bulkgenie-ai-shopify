@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useActionData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
 import {
   Page,
@@ -20,63 +20,12 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-
-const TRIAL_DAYS = 3;
-
-const PLANS = [
-  {
-    id: "free",
-    name: "Free",
-    price: 0,
-    annualPrice: 0,
-    productsPerMonth: 10,
-    features: [
-      "10 products/month",
-      "Bring your own API key",
-      "All content fields",
-    ],
-  },
-  {
-    id: "starter",
-    name: "Starter",
-    price: 19,
-    annualPrice: 190,
-    productsPerMonth: 100,
-    features: [
-      "100 products/month",
-      "Bring your own API key",
-      "All content fields",
-      "Priority processing",
-    ],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    price: 39,
-    annualPrice: 390,
-    productsPerMonth: 500,
-    features: [
-      "500 products/month",
-      "Bring your own API key",
-      "Brand voice training",
-      "All content fields",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    price: 79,
-    annualPrice: 790,
-    productsPerMonth: Infinity,
-    features: [
-      "Unlimited products",
-      "Bring your own API key",
-      "Brand voice training",
-      "All content fields",
-      "Priority support",
-    ],
-  },
-];
+import {
+  PLANS,
+  TRIAL_DAYS,
+  getManagedPricingUrl,
+  syncTierFromSubscription,
+} from "../services/billing/plans";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -84,6 +33,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopDomain = session.shop;
     const url = new URL(request.url);
     const confirmedPlan = url.searchParams.get("confirmed");
+    const chargeId = url.searchParams.get("charge_id");
 
     const shop = await prisma.shop.upsert({
       where: { shopDomain },
@@ -123,6 +73,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         // Merchant declined the charge — don't update tier
         confirmationMessage = "Subscription was not confirmed. Your plan has not changed.";
       }
+    } else if (chargeId) {
+      const syncedTier = syncTierFromSubscription(activeSubscription);
+      if (syncedTier !== shop.tier) {
+        await prisma.shop.update({
+          where: { shopDomain },
+          data: { tier: syncedTier },
+        });
+        shop.tier = syncedTier;
+      }
+      confirmationMessage = activeSubscription
+        ? "Subscription updated. Your plan has been synced from Shopify."
+        : "Plan selection completed. Your current plan is Free.";
     } else {
       // Sync local tier with Shopify subscription state
       const syncedTier = syncTierFromSubscription(activeSubscription);
@@ -208,125 +170,20 @@ async function getActiveSubscription(
   }
 }
 
-function syncTierFromSubscription(subscription: { name: string; status: string } | null): string {
-  if (!subscription || subscription.status !== "ACTIVE") {
-    return "free";
-  }
-  // Extract plan ID from subscription name (e.g. "BulkGenie AI Starter (Monthly)")
-  const name = subscription.name.toLowerCase();
-  for (const plan of PLANS) {
-    if (plan.id !== "free" && name.includes(plan.id)) {
-      return plan.id;
-    }
-  }
-  return "free";
-}
-
-function getBillingReturnUrl(request: Request, planId: string) {
-  const appUrl = process.env.SHOPIFY_APP_URL || new URL(request.url).origin;
-  const returnUrl = new URL("/app/billing", appUrl);
-  returnUrl.searchParams.set("confirmed", planId);
-  return returnUrl.toString();
-}
-
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
-  const shopDomain = session.shop;
+  const { redirect, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
   if (intent === "subscribe") {
     const planId = formData.get("planId") as string;
-    const interval = formData.get("interval") as string || "EVERY_30_DAYS";
     const plan = PLANS.find((p) => p.id === planId);
 
-    if (!plan || plan.price === 0) {
-      // Downgrade to free — cancel existing subscription on Shopify
-      const activeSubscription = await getActiveSubscription(admin);
-      if (activeSubscription) {
-        await admin.graphql(
-          `#graphql
-          mutation cancelSubscription($id: ID!) {
-            appSubscriptionCancel(id: $id) {
-              appSubscription { id }
-              userErrors { field message }
-            }
-          }`,
-          { variables: { id: activeSubscription.id } },
-        );
-      }
-      await prisma.shop.update({
-        where: { shopDomain },
-        data: { tier: "free" },
-      });
-      return json({ success: true, message: "Downgraded to Free plan" });
+    if (!plan) {
+      return json({ error: "Unknown plan" }, { status: 400 });
     }
 
-    const isAnnual = interval === "ANNUAL";
-    const price = isAnnual ? plan.annualPrice : plan.price;
-    const planLabel = `BulkGenie AI ${plan.name} (${isAnnual ? "Annual" : "Monthly"})`;
-
-    const activeSubscription = await getActiveSubscription(admin);
-    const trialDays = activeSubscription ? 0 : TRIAL_DAYS;
-
-    // Create Shopify billing subscription
-    const response = await admin.graphql(
-      `#graphql
-      mutation createSubscription($name: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $returnUrl: URL!, $trialDays: Int, $replacementBehavior: AppSubscriptionReplacementBehavior, $test: Boolean) {
-        appSubscriptionCreate(
-          name: $name
-          lineItems: $lineItems
-          returnUrl: $returnUrl
-          trialDays: $trialDays
-          replacementBehavior: $replacementBehavior
-          test: $test
-        ) {
-          appSubscription {
-            id
-          }
-          confirmationUrl
-          userErrors {
-            field
-            message
-          }
-        }
-      }`,
-      {
-        variables: {
-          name: planLabel,
-          lineItems: [
-            {
-              plan: {
-                appRecurringPricingDetails: {
-                  price: {
-                    amount: price,
-                    currencyCode: "USD",
-                  },
-                  interval,
-                },
-              },
-            },
-          ],
-          returnUrl: getBillingReturnUrl(request, planId),
-          trialDays,
-          replacementBehavior: "APPLY_IMMEDIATELY" as const,
-          test: process.env.NODE_ENV !== "production",
-        },
-      },
-    );
-
-    const responseJson = await response.json();
-    const { appSubscriptionCreate } = responseJson.data!;
-
-    if (appSubscriptionCreate.userErrors?.length) {
-      return json(
-        { error: appSubscriptionCreate.userErrors[0].message },
-        { status: 400 },
-      );
-    }
-
-    // Redirect merchant to Shopify's confirmation page
-    return redirect(appSubscriptionCreate.confirmationUrl);
+    return redirect(getManagedPricingUrl(session.shop), { target: "_top" });
   }
 
   return json({ error: "Unknown action" }, { status: 400 });
@@ -472,10 +329,10 @@ export default function BillingPage() {
                           fullWidth
                         >
                           {plan.price === 0
-                            ? "Downgrade to Free"
+                            ? "Choose Free in Shopify"
                             : plan.price > currentPlan.price
-                              ? (activeSubscription ? "Upgrade" : "Start Free Trial")
-                              : "Switch Plan"}
+                              ? (activeSubscription ? "Upgrade in Shopify" : "Start Free Trial")
+                              : "Switch in Shopify"}
                         </Button>
                       )}
                     </BlockStack>

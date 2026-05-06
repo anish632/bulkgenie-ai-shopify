@@ -21,6 +21,10 @@ api_version = "2026-01"
   uri = "https://bulkgenie.dasgroupllc.com/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
+  topics = [ "app_subscriptions/update" ]
+  uri = "https://bulkgenie.dasgroupllc.com/webhooks/app_subscriptions/update"
+
+  [[webhooks.subscriptions]]
   uri = "https://bulkgenie.dasgroupllc.com/webhooks/customers/data_request"
   compliance_topics = [ "customers/data_request" ]
 
