@@ -25,8 +25,12 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { updateProductInShopify, fetchProductFromShopify } from "../services/shopify/products";
+import {
+  updateProductInShopify,
+  fetchProductFromShopify,
+} from "../services/shopify/products";
 import { getAIProvider } from "../services/ai/factory";
+import { sanitizeGeneratedContent } from "../services/ai/provider";
 
 interface JobItemData {
   id: string;
@@ -78,7 +82,12 @@ async function buildImageAltTextUpdates(
   productGid: string,
   altTextsJson: string | null | undefined,
 ) {
-  const altTexts = parseAltTextMap(altTextsJson);
+  const altTexts = Object.fromEntries(
+    Object.entries(parseAltTextMap(altTextsJson)).map(([key, value]) => [
+      key,
+      sanitizeGeneratedContent(value),
+    ]),
+  );
   if (!Object.keys(altTexts).length) return undefined;
 
   const product = await fetchProductFromShopify(
@@ -352,14 +361,17 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
       for (const item of approvedItems) {
         try {
-          const desc =
-            item.editedDescription ??
-            item.generatedDescription ??
-            undefined;
+          const generatedDescription =
+            sanitizeGeneratedContent(item.generatedDescription) || undefined;
+          const generatedSeoTitle =
+            sanitizeGeneratedContent(item.generatedSeoTitle) || undefined;
+          const generatedSeoDescription =
+            sanitizeGeneratedContent(item.generatedSeoDesc) || undefined;
+          const desc = item.editedDescription ?? generatedDescription;
           const seoTitle =
-            item.editedSeoTitle ?? item.generatedSeoTitle ?? undefined;
+            item.editedSeoTitle ?? generatedSeoTitle;
           const seoDesc =
-            item.editedSeoDesc ?? item.generatedSeoDesc ?? undefined;
+            item.editedSeoDesc ?? generatedSeoDescription;
           const imageAltTexts = await buildImageAltTextUpdates(
             shopSession.accessToken,
             session.shop,
@@ -626,14 +638,16 @@ export default function JobReviewPage() {
       seoTitle: item.generatedSeoTitle,
       seoDescription: item.generatedSeoDesc,
     };
-    return editedMap[field] ?? generatedMap[field] ?? "";
+    return editedMap[field] ?? sanitizeGeneratedContent(generatedMap[field]);
   };
 
   const getAltTextSummary = (item: JobItemData) => {
     const altTextMap = parseAltTextMap(
       item.editedAltTexts ?? item.generatedAltTexts,
     );
-    const values = Object.values(altTextMap).filter(Boolean);
+    const values = Object.values(altTextMap)
+      .map((value) => sanitizeGeneratedContent(value))
+      .filter(Boolean);
     if (!values.length) return "";
 
     const firstAltText = values[0];

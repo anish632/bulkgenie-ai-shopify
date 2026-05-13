@@ -4,6 +4,7 @@ import type {
   GenerateContentInput,
   GenerateContentOutput,
 } from "./provider";
+import { productCopyGuardrails, sanitizeGeneratedOutput } from "./provider";
 
 export class AnthropicProvider implements AIProvider {
   name = "anthropic";
@@ -42,6 +43,8 @@ export class AnthropicProvider implements AIProvider {
   private buildSystemPrompt(input: GenerateContentInput): string {
     let prompt =
       "You are an expert e-commerce copywriter and SEO specialist. Generate product content in JSON format only. No markdown, no explanation, just valid JSON.";
+
+    prompt += `\n\n${productCopyGuardrails()}`;
 
     if (input.brandVoice) {
       prompt += `\n\nBrand Voice Guidelines:\n${input.brandVoice}`;
@@ -111,15 +114,15 @@ ${JSON.stringify(schema, null, 2)}`;
       result.description = parsed.description;
     }
     if (fields.includes("seoTitle") && parsed.seoTitle) {
-      result.seoTitle = parsed.seoTitle.substring(0, 70);
+      result.seoTitle = parsed.seoTitle;
     }
     if (fields.includes("seoDescription") && parsed.seoDescription) {
-      result.seoDescription = parsed.seoDescription.substring(0, 160);
+      result.seoDescription = parsed.seoDescription;
     }
     if (fields.includes("altText") && parsed.altTexts) {
       result.altTexts = parsed.altTexts;
     }
 
-    return result;
+    return sanitizeGeneratedOutput(result);
   }
 }
