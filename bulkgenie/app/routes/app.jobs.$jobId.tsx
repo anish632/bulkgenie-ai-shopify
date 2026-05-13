@@ -17,11 +17,9 @@ import {
   Button,
   InlineStack,
   Badge,
-  IndexTable,
   TextField,
   ProgressBar,
   Banner,
-  useIndexResourceState,
 } from "@shopify/polaris";
 import { useAppBridge } from "@shopify/app-bridge-react";
 
@@ -68,6 +66,10 @@ function parseAltTextMap(value: string | null | undefined) {
   } catch {
     return {};
   }
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, "").trim();
 }
 
 async function buildImageAltTextUpdates(
@@ -522,9 +524,6 @@ export default function JobReviewPage() {
     value: string;
   } | null>(null);
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(job.items);
-
   const handleApproveItem = useCallback(
     (itemId: string) => {
       const formData = new FormData();
@@ -643,6 +642,103 @@ export default function JobReviewPage() {
       : `${values.length} images: ${firstAltText}`;
   };
 
+  const canEditItem = (status: string) =>
+    status === "generated" || status === "approved";
+
+  const renderEditableField = (
+    item: JobItemData,
+    field: "description" | "seoTitle" | "seoDescription",
+    label: string,
+    value: string,
+    characterLimit?: number,
+  ) => {
+    const isEditing =
+      editingCell?.itemId === item.id && editingCell.field === field;
+    const displayValue = field === "description" ? stripHtml(value) : value;
+
+    if (isEditing) {
+      return (
+        <BlockStack gap="200">
+          <Text as="p" variant="bodySm" tone="subdued">
+            {label}
+          </Text>
+          <TextField
+            label=""
+            value={editingCell.value}
+            onChange={(v) => setEditingCell({ ...editingCell, value: v })}
+            multiline={field === "seoTitle" ? undefined : 3}
+            autoComplete="off"
+          />
+          <InlineStack gap="200" blockAlign="center">
+            {characterLimit && (
+              <Text
+                as="span"
+                variant="bodySm"
+                tone={
+                  editingCell.value.length > characterLimit
+                    ? "critical"
+                    : "subdued"
+                }
+              >
+                {`${editingCell.value.length}/${characterLimit}`}
+              </Text>
+            )}
+            <Button size="micro" onClick={handleSaveEdit}>
+              Save
+            </Button>
+            <Button
+              size="micro"
+              variant="plain"
+              onClick={() => setEditingCell(null)}
+            >
+              Cancel
+            </Button>
+          </InlineStack>
+        </BlockStack>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          cursor: canEditItem(item.status) ? "pointer" : "default",
+          minWidth: 0,
+          overflowWrap: "anywhere",
+          whiteSpace: "normal",
+        }}
+        onClick={() =>
+          canEditItem(item.status)
+            ? setEditingCell({
+                itemId: item.id,
+                field,
+                value,
+              })
+            : undefined
+        }
+      >
+        <BlockStack gap="100">
+          <InlineStack align="space-between" gap="200" blockAlign="center">
+            <Text as="p" variant="bodySm" tone="subdued">
+              {label}
+            </Text>
+            {characterLimit && value && (
+              <Text
+                as="span"
+                variant="bodySm"
+                tone={value.length > characterLimit ? "critical" : "subdued"}
+              >
+                {`${value.length}/${characterLimit}`}
+              </Text>
+            )}
+          </InlineStack>
+          <Text as="p" variant="bodyMd">
+            {displayValue || "—"}
+          </Text>
+        </BlockStack>
+      </div>
+    );
+  };
+
   const approvedCount = job.items.filter(
     (i: JobItemData) => i.status === "approved",
   ).length;
@@ -657,274 +753,125 @@ export default function JobReviewPage() {
     "published" in actionData &&
     Number(actionData.published) > 0;
 
-  const rowMarkup = job.items.map((item: JobItemData, index: number) => {
+  const reviewCards = job.items.map((item: JobItemData) => {
     const descValue = getDisplayValue(item, "description");
     const seoTitleValue = getDisplayValue(item, "seoTitle");
     const seoDescValue = getDisplayValue(item, "seoDescription");
     const altTextSummary = getAltTextSummary(item);
 
     return (
-      <IndexTable.Row
-        id={item.id}
+      <Card
         key={item.id}
-        selected={selectedResources.includes(item.id)}
-        position={index}
-        tone={
+        padding="400"
+        background={
           item.status === "approved" || item.status === "published"
-            ? "success"
+            ? "bg-surface-success"
             : item.status === "failed"
-              ? "critical"
-              : undefined
+              ? "bg-surface-critical"
+              : "bg-surface"
         }
       >
-        <IndexTable.Cell>
-          <InlineStack gap="200" blockAlign="center">
-            <Text as="span" variant="bodyMd" fontWeight="semibold">
-              {item.productTitle}
-            </Text>
-            {statusBadge(item.status)}
-          </InlineStack>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          {editingCell?.itemId === item.id &&
-          editingCell.field === "description" ? (
-            <BlockStack gap="200">
-              <TextField
-                label=""
-                value={editingCell.value}
-                onChange={(v) =>
-                  setEditingCell({ ...editingCell, value: v })
-                }
-                multiline={3}
-                autoComplete="off"
-              />
-              <InlineStack gap="200">
-                <Button size="micro" onClick={handleSaveEdit}>
-                  Save
-                </Button>
-                <Button
-                  size="micro"
-                  variant="plain"
-                  onClick={() => setEditingCell(null)}
-                >
-                  Cancel
-                </Button>
+        <BlockStack gap="400">
+          <InlineStack align="space-between" blockAlign="start" gap="300">
+            <BlockStack gap="100">
+              <InlineStack gap="200" blockAlign="center">
+                <Text as="h3" variant="headingSm">
+                  {item.productTitle}
+                </Text>
+                {statusBadge(item.status)}
               </InlineStack>
             </BlockStack>
-          ) : (
-            <div
-              style={{ cursor: "pointer" }}
-              onClick={() =>
-                item.status === "generated" || item.status === "approved"
-                  ? setEditingCell({
-                      itemId: item.id,
-                      field: "description",
-                      value: descValue,
-                    })
-                  : undefined
-              }
-            >
-              <Text as="span" variant="bodyMd" truncate>
-                {descValue
-                  ? descValue.replace(/<[^>]*>/g, "").substring(0, 100) +
-                    (descValue.length > 100 ? "..." : "")
-                  : "—"}
-              </Text>
-            </div>
-          )}
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          {editingCell?.itemId === item.id &&
-          editingCell.field === "seoTitle" ? (
-            <BlockStack gap="200">
-              <TextField
-                label=""
-                value={editingCell.value}
-                onChange={(v) =>
-                  setEditingCell({ ...editingCell, value: v })
-                }
-                autoComplete="off"
-              />
-              <InlineStack gap="200">
-                <Text
-                  as="span"
-                  variant="bodySm"
-                  tone={
-                    editingCell.value.length > 70 ? "critical" : "subdued"
-                  }
-                >
-                  {editingCell.value.length}/70
-                </Text>
-                <Button size="micro" onClick={handleSaveEdit}>
-                  Save
-                </Button>
-                <Button
-                  size="micro"
-                  variant="plain"
-                  onClick={() => setEditingCell(null)}
-                >
-                  Cancel
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          ) : (
-            <div
-              style={{ cursor: "pointer" }}
-              onClick={() =>
-                item.status === "generated" || item.status === "approved"
-                  ? setEditingCell({
-                      itemId: item.id,
-                      field: "seoTitle",
-                      value: seoTitleValue,
-                    })
-                  : undefined
-              }
-            >
-              <BlockStack gap="100">
-                <Text as="span" variant="bodyMd" truncate>
-                  {seoTitleValue || "—"}
-                </Text>
-                {seoTitleValue && (
-                  <Text
-                    as="span"
-                    variant="bodySm"
-                    tone={
-                      seoTitleValue.length > 70 ? "critical" : "subdued"
-                    }
-                  >
-                    {`${seoTitleValue.length}/70`}
-                  </Text>
-                )}
-              </BlockStack>
-            </div>
-          )}
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          {editingCell?.itemId === item.id &&
-          editingCell.field === "seoDescription" ? (
-            <BlockStack gap="200">
-              <TextField
-                label=""
-                value={editingCell.value}
-                onChange={(v) =>
-                  setEditingCell({ ...editingCell, value: v })
-                }
-                multiline={2}
-                autoComplete="off"
-              />
-              <InlineStack gap="200">
-                <Text
-                  as="span"
-                  variant="bodySm"
-                  tone={
-                    editingCell.value.length > 160 ? "critical" : "subdued"
-                  }
-                >
-                  {editingCell.value.length}/160
-                </Text>
-                <Button size="micro" onClick={handleSaveEdit}>
-                  Save
-                </Button>
-                <Button
-                  size="micro"
-                  variant="plain"
-                  onClick={() => setEditingCell(null)}
-                >
-                  Cancel
-                </Button>
-              </InlineStack>
-            </BlockStack>
-          ) : (
-            <div
-              style={{ cursor: "pointer" }}
-              onClick={() =>
-                item.status === "generated" || item.status === "approved"
-                  ? setEditingCell({
-                      itemId: item.id,
-                      field: "seoDescription",
-                      value: seoDescValue,
-                    })
-                  : undefined
-              }
-            >
-              <BlockStack gap="100">
-                <Text as="span" variant="bodyMd" truncate>
-                  {seoDescValue || "—"}
-                </Text>
-                {seoDescValue && (
-                  <Text
-                    as="span"
-                    variant="bodySm"
-                    tone={
-                      seoDescValue.length > 160 ? "critical" : "subdued"
-                    }
-                  >
-                    {`${seoDescValue.length}/160`}
-                  </Text>
-                )}
-              </BlockStack>
-            </div>
-          )}
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <Text as="span" variant="bodyMd" truncate>
-            {altTextSummary || "—"}
-          </Text>
-        </IndexTable.Cell>
-        <IndexTable.Cell>
-          <InlineStack gap="200">
-            {(item.status === "generated" || item.status === "approved") && (
-              <>
-                {item.status === "generated" && (
+            <InlineStack gap="200">
+              {(item.status === "generated" ||
+                item.status === "approved") && (
+                <>
+                  {item.status === "generated" && (
+                    <Button
+                      size="micro"
+                      onClick={() => handleApproveItem(item.id)}
+                    >
+                      Approve
+                    </Button>
+                  )}
                   <Button
                     size="micro"
-                    onClick={() => handleApproveItem(item.id)}
+                    variant="plain"
+                    onClick={() => handleRegenerateItem(item.id)}
                   >
-                    Approve
+                    Regenerate
                   </Button>
-                )}
+                  <Button
+                    size="micro"
+                    variant="plain"
+                    onClick={() => handleSkipItem(item.id)}
+                  >
+                    Skip
+                  </Button>
+                </>
+              )}
+              {item.status === "published" && (
                 <Button
                   size="micro"
                   variant="plain"
-                  onClick={() => handleRegenerateItem(item.id)}
+                  tone="critical"
+                  onClick={() => handleUndoItem(item.id)}
                 >
-                  Regenerate
+                  Undo
                 </Button>
-                <Button
-                  size="micro"
-                  variant="plain"
-                  onClick={() => handleSkipItem(item.id)}
-                >
-                  Skip
-                </Button>
-              </>
-            )}
-            {item.status === "published" && (
-              <Button
-                size="micro"
-                variant="plain"
-                tone="critical"
-                onClick={() => handleUndoItem(item.id)}
-              >
-                Undo
-              </Button>
-            )}
-            {item.status === "failed" && (
-              <InlineStack gap="200" blockAlign="center">
-                <Text as="span" variant="bodySm" tone="critical">
-                  {item.errorMessage?.substring(0, 50)}
-                </Text>
-                <Button
-                  size="micro"
-                  onClick={() => handleRegenerateItem(item.id)}
-                >
-                  Retry
-                </Button>
-              </InlineStack>
-            )}
+              )}
+              {item.status === "failed" && (
+                <InlineStack gap="200" blockAlign="center">
+                  <Text as="span" variant="bodySm" tone="critical">
+                    {item.errorMessage?.substring(0, 80)}
+                  </Text>
+                  <Button
+                    size="micro"
+                    onClick={() => handleRegenerateItem(item.id)}
+                  >
+                    Retry
+                  </Button>
+                </InlineStack>
+              )}
+            </InlineStack>
           </InlineStack>
-        </IndexTable.Cell>
-      </IndexTable.Row>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "16px",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
+              minWidth: 0,
+            }}
+          >
+            {renderEditableField(item, "description", "Description", descValue)}
+            <BlockStack gap="300">
+              {renderEditableField(
+                item,
+                "seoTitle",
+                "SEO title",
+                seoTitleValue,
+                70,
+              )}
+              {renderEditableField(
+                item,
+                "seoDescription",
+                "Meta description",
+                seoDescValue,
+                160,
+              )}
+              <BlockStack gap="100">
+                <Text as="p" variant="bodySm" tone="subdued">
+                  Image alt text
+                </Text>
+                <Text as="p" variant="bodyMd">
+                  {altTextSummary || "—"}
+                </Text>
+              </BlockStack>
+            </BlockStack>
+          </div>
+        </BlockStack>
+      </Card>
     );
   });
 
@@ -1018,27 +965,7 @@ export default function JobReviewPage() {
           </Banner>
         )}
 
-        {/* Spreadsheet grid */}
-        <Card padding="0">
-          <IndexTable
-            resourceName={{ singular: "product", plural: "products" }}
-            itemCount={job.items.length}
-            selectedItemsCount={
-              allResourcesSelected ? "All" : selectedResources.length
-            }
-            onSelectionChange={handleSelectionChange}
-            headings={[
-              { title: "Product" },
-              { title: "Description" },
-              { title: "SEO Title" },
-              { title: "Meta Description" },
-              { title: "Image Alt Text" },
-              { title: "Actions" },
-            ]}
-          >
-            {rowMarkup}
-          </IndexTable>
-        </Card>
+        <BlockStack gap="300">{reviewCards}</BlockStack>
       </BlockStack>
     </Page>
   );
