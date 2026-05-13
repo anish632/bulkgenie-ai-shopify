@@ -330,7 +330,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     case "edit_item": {
       const itemId = formData.get("itemId") as string;
       const field = formData.get("field") as string;
-      const value = formData.get("value") as string;
+      const value = sanitizeGeneratedContent(formData.get("value") as string);
 
       const updateData: Record<string, string> = {};
       switch (field) {
@@ -367,11 +367,15 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
             sanitizeGeneratedContent(item.generatedSeoTitle) || undefined;
           const generatedSeoDescription =
             sanitizeGeneratedContent(item.generatedSeoDesc) || undefined;
-          const desc = item.editedDescription ?? generatedDescription;
-          const seoTitle =
-            item.editedSeoTitle ?? generatedSeoTitle;
-          const seoDesc =
-            item.editedSeoDesc ?? generatedSeoDescription;
+          const editedDescription =
+            sanitizeGeneratedContent(item.editedDescription) || undefined;
+          const editedSeoTitle =
+            sanitizeGeneratedContent(item.editedSeoTitle) || undefined;
+          const editedSeoDescription =
+            sanitizeGeneratedContent(item.editedSeoDesc) || undefined;
+          const desc = editedDescription ?? generatedDescription;
+          const seoTitle = editedSeoTitle ?? generatedSeoTitle;
+          const seoDesc = editedSeoDescription ?? generatedSeoDescription;
           const imageAltTexts = await buildImageAltTextUpdates(
             shopSession.accessToken,
             session.shop,
@@ -638,7 +642,7 @@ export default function JobReviewPage() {
       seoTitle: item.generatedSeoTitle,
       seoDescription: item.generatedSeoDesc,
     };
-    return editedMap[field] ?? sanitizeGeneratedContent(generatedMap[field]);
+    return sanitizeGeneratedContent(editedMap[field] ?? generatedMap[field]);
   };
 
   const getAltTextSummary = (item: JobItemData) => {
