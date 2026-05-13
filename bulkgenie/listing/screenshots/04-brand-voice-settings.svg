@@ -36,9 +36,9 @@
   <g transform="translate(60, 90)">
     <text font-size="15" font-weight="600" fill="#202223">AI Provider</text>
     <text font-size="13" fill="#6d7175" y="22">
-      <tspan x="0" dy="0">Choose how AI content</tspan>
-      <tspan x="0" dy="18">is generated for your</tspan>
-      <tspan x="0" dy="18">product descriptions.</tspan>
+      <tspan x="0" dy="0">Use your own provider</tspan>
+      <tspan x="0" dy="18">key to generate product</tspan>
+      <tspan x="0" dy="18">content drafts.</tspan>
     </text>
     <!-- Dashed connector line -->
     <line x1="220" y1="20" x2="280" y2="20" stroke="#c9cccf" stroke-width="1" stroke-dasharray="4,3"/>
@@ -47,31 +47,38 @@
   <!-- AI Provider Card -->
   <rect x="340" y="82" width="1200" height="290" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#shadow2)"/>
 
-  <!-- Radio 1: BulkGenie Cloud (selected) -->
+  <!-- Radio 1: Anthropic (selected) -->
   <g transform="translate(376, 116)">
     <circle cx="10" cy="10" r="10" fill="none" stroke="#008060" stroke-width="2"/>
     <circle cx="10" cy="10" r="5" fill="#008060"/>
-    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">BulkGenie Cloud (default)</text>
-    <text x="30" font-size="13" fill="#6d7175" y="34">Uses our AI infrastructure. Included with your plan.</text>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Anthropic (Claude)</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your Anthropic API key for Claude models.</text>
   </g>
 
-  <!-- Radio 2: Anthropic -->
-  <g transform="translate(376, 178)">
+  <!-- Radio 2: OpenAI -->
+  <g transform="translate(376, 168)">
     <circle cx="10" cy="10" r="10" fill="none" stroke="#c9cccf" stroke-width="2"/>
-    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Bring Your Own Key — Anthropic</text>
-    <text x="30" font-size="13" fill="#6d7175" y="34">Use your own Anthropic API key for Claude models.</text>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">OpenAI (GPT)</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your OpenAI API key for GPT models.</text>
   </g>
 
-  <!-- Radio 3: OpenAI -->
-  <g transform="translate(376, 240)">
+  <!-- Radio 3: Mistral -->
+  <g transform="translate(376, 220)">
     <circle cx="10" cy="10" r="10" fill="none" stroke="#c9cccf" stroke-width="2"/>
-    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Bring Your Own Key — OpenAI</text>
-    <text x="30" font-size="13" fill="#6d7175" y="34">Use your own OpenAI API key for GPT models.</text>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Mistral AI</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your Mistral API key for product content.</text>
+  </g>
+
+  <!-- Radio 4: Kimi -->
+  <g transform="translate(376, 272)">
+    <circle cx="10" cy="10" r="10" fill="none" stroke="#c9cccf" stroke-width="2"/>
+    <text x="30" font-size="14" font-weight="600" fill="#202223" y="15">Kimi (Moonshot AI)</text>
+    <text x="30" font-size="13" fill="#6d7175" y="34">Use your Moonshot API key for Kimi models.</text>
   </g>
 
   <!-- Save Provider Button -->
-  <rect x="376" y="304" width="140" height="36" rx="6" fill="#008060"/>
-  <text x="404" y="327" font-size="14" font-weight="500" fill="#ffffff">Save Provider</text>
+  <rect x="376" y="326" width="140" height="36" rx="6" fill="#008060"/>
+  <text x="404" y="349" font-size="14" font-weight="500" fill="#ffffff">Save Provider</text>
 
   <!-- ======== SECTION 2: Brand Voice ======== -->
 

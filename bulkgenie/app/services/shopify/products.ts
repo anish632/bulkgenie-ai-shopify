@@ -1,4 +1,4 @@
-const SHOPIFY_API_VERSION = "2025-01";
+const SHOPIFY_API_VERSION = "2026-01";
 
 function shopifyGqlUrl(shopDomain: string): string {
   return `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -129,8 +129,8 @@ export async function updateProductInShopify(
   },
 ) {
   const productMutation = `
-    mutation updateProduct($input: ProductInput!) {
-      productUpdate(input: $input) {
+    mutation updateProduct($product: ProductUpdateInput!) {
+      productUpdate(product: $product) {
         product {
           id
         }
@@ -156,10 +156,14 @@ export async function updateProductInShopify(
   const response = await fetch(shopifyGqlUrl(shopDomain), {
     method: "POST",
     headers: gqlHeaders(accessToken),
-    body: JSON.stringify({ query: productMutation, variables: { input } }),
+    body: JSON.stringify({
+      query: productMutation,
+      variables: { product: input },
+    }),
   });
 
   const json = await response.json();
+  if (json.errors) throw new Error(JSON.stringify(json.errors));
   if (json.data?.productUpdate?.userErrors?.length) {
     throw new Error(JSON.stringify(json.data.productUpdate.userErrors));
   }
@@ -182,7 +186,7 @@ export async function updateProductInShopify(
         }
       `;
 
-      await fetch(shopifyGqlUrl(shopDomain), {
+      const imageResponse = await fetch(shopifyGqlUrl(shopDomain), {
         method: "POST",
         headers: gqlHeaders(accessToken),
         body: JSON.stringify({
@@ -193,6 +197,13 @@ export async function updateProductInShopify(
           },
         }),
       });
+      const imageJson = await imageResponse.json();
+      if (imageJson.errors) throw new Error(JSON.stringify(imageJson.errors));
+      if (imageJson.data?.productImageUpdate?.userErrors?.length) {
+        throw new Error(
+          JSON.stringify(imageJson.data.productImageUpdate.userErrors),
+        );
+      }
 
       // Small delay between image updates to respect rate limits
       await new Promise((resolve) => setTimeout(resolve, 100));

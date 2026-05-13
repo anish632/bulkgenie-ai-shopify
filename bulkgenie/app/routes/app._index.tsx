@@ -26,41 +26,45 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const { session } = await authenticate.admin(request);
     const shopDomain = session.shop;
 
-  // Ensure shop record exists
-  const shop = await prisma.shop.upsert({
-    where: { shopDomain },
-    update: {},
-    create: { shopDomain },
-  });
-
-  // Reset usage if billing cycle has passed (30 days)
-  const now = new Date();
-  const resetDate = new Date(shop.usageResetDate);
-  const daysSinceReset = Math.floor(
-    (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  if (daysSinceReset >= 30) {
-    await prisma.shop.update({
+    // Ensure shop record exists
+    const shop = await prisma.shop.upsert({
       where: { shopDomain },
-      data: { monthlyUsage: 0, usageResetDate: now },
+      update: {},
+      create: { shopDomain },
     });
-    shop.monthlyUsage = 0;
-  }
 
-  // Get recent jobs
-  const recentJobs = await prisma.job.findMany({
-    where: { shopDomain },
-    orderBy: { createdAt: "desc" },
-    take: 10,
-    include: {
-      _count: {
-        select: { items: true },
+    // Reset usage if billing cycle has passed (30 days)
+    const now = new Date();
+    const resetDate = new Date(shop.usageResetDate);
+    const daysSinceReset = Math.floor(
+      (now.getTime() - resetDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (daysSinceReset >= 30) {
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: { monthlyUsage: 0, usageResetDate: now },
+      });
+      shop.monthlyUsage = 0;
+    }
+
+    // Get recent jobs
+    const recentJobs = await prisma.job.findMany({
+      where: { shopDomain },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      include: {
+        _count: {
+          select: { items: true },
+        },
       },
-    },
-  });
+    });
 
     return json({
-      shop,
+      shop: {
+        tier: shop.tier,
+        monthlyUsage: shop.monthlyUsage,
+      },
+      hasApiKey: Boolean(shop.byokApiKey),
       recentJobs,
     });
   } catch (error) {
@@ -73,7 +77,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function Index() {
-  const { shop, recentJobs } = useLoaderData<typeof loader>();
+  const { shop, hasApiKey, recentJobs } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   const statusBadge = useCallback((status: string) => {
@@ -118,6 +122,20 @@ export default function Index() {
     <Page>
       <TitleBar title="BulkGenie AI" />
       <BlockStack gap="500">
+        {!hasApiKey && (
+          <Banner
+            tone="warning"
+            title="Add an AI provider key before your first batch"
+            action={{ content: "Add API key", url: "/app/settings" }}
+          >
+            <p>
+              BulkGenie uses your own Anthropic, OpenAI, Mistral, or Kimi key.
+              The key is encrypted before storage, and generated product copy
+              stays in review until you publish it.
+            </p>
+          </Banner>
+        )}
+
         <Layout>
           <Layout.Section>
             <InlineGrid columns={3} gap="400">
@@ -183,11 +201,17 @@ export default function Index() {
 
                 {recentJobs.length === 0 ? (
                   <EmptyState
-                    heading="No jobs yet"
+                    heading="Generate your first SEO content batch"
                     image=""
+                    action={{
+                      content: hasApiKey ? "Select products" : "Add API key",
+                      url: hasApiKey ? "/app/generate" : "/app/settings",
+                    }}
                   >
                     <p>
-                      Select products and generate AI content to get started.
+                      Start with products missing SEO titles, meta descriptions,
+                      descriptions, or image alt text. Review every draft before
+                      anything changes in Shopify.
                     </p>
                   </EmptyState>
                 ) : (

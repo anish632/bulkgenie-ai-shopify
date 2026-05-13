@@ -7,7 +7,6 @@ import {
   Layout,
   Card,
   BlockStack,
-  Text,
   Button,
   InlineStack,
   TextField,
@@ -15,9 +14,7 @@ import {
   ChoiceList,
   RadioButton,
   Banner,
-  Divider,
 } from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -70,7 +67,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         data: updateData,
       });
 
-      return json({ success: true, message: "AI provider updated" });
+      return json({ success: true, message: "AI provider saved" });
     }
 
     case "save_brand_voice": {
@@ -170,7 +167,6 @@ export default function SettingsPage() {
   const { shop } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const submit = useSubmit();
-  const shopifyBridge = useAppBridge();
 
   const initialProvider = shop.aiProvider === "cloud" ? "byok_anthropic" : shop.aiProvider;
   const [aiProvider, setAiProvider] = useState(initialProvider);
@@ -242,10 +238,17 @@ export default function SettingsPage() {
           {/* AI Provider Section */}
           <Layout.AnnotatedSection
             title="AI Provider"
-            description="BulkGenie uses your own API key to generate content. Choose your preferred AI provider below."
+            description="Use your own provider key to generate product content drafts."
           >
             <Card>
               <BlockStack gap="400">
+                <Banner tone="info" title="One-time setup before your first batch">
+                  <p>
+                    Paste a provider key, test it, then save. The key is
+                    encrypted before storage and used when you generate product
+                    descriptions, SEO copy, and image alt text.
+                  </p>
+                </Banner>
                 <RadioButton
                   label="Anthropic (Claude)"
                   helpText="Uses Claude models for high-quality product content."
@@ -264,7 +267,7 @@ export default function SettingsPage() {
                 />
                 <RadioButton
                   label="Mistral AI"
-                  helpText="Uses Mistral models. Free tier available at console.mistral.ai."
+                  helpText="Uses Mistral models with your Mistral API key."
                   checked={aiProvider === "byok_mistral"}
                   id="byok_mistral"
                   name="aiProvider"
@@ -289,12 +292,12 @@ export default function SettingsPage() {
                     placeholder={aiProvider === "byok_anthropic" ? "sk-ant-..." : "sk-..."}
                     helpText={
                       aiProvider === "byok_anthropic"
-                        ? "Get your key at console.anthropic.com. Your key is encrypted and stored securely."
+                        ? "Get your key at console.anthropic.com. Your key is encrypted before storage."
                         : aiProvider === "byok_mistral"
-                          ? "Get your free key at console.mistral.ai. Your key is encrypted and stored securely."
+                          ? "Get your key at console.mistral.ai. Your key is encrypted before storage."
                           : aiProvider === "byok_kimi"
-                            ? "Get your key at platform.moonshot.cn. Your key is encrypted and stored securely."
-                            : "Get your key at platform.openai.com. Your key is encrypted and stored securely."
+                            ? "Get your key at platform.moonshot.cn. Your key is encrypted before storage."
+                            : "Get your key at platform.openai.com. Your key is encrypted before storage."
                     }
                   />
                   <InlineStack gap="200">

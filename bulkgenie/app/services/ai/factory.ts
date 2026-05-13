@@ -7,7 +7,7 @@ import { decrypt } from "../encryption.server";
 export function getAIProvider(shop: Shop): AIProvider {
   if (!shop.byokApiKey) {
     throw new Error(
-      "No API key configured. Go to Settings to add your API key (Anthropic, OpenAI, or Mistral).",
+      "No API key configured. Go to Settings to add your Anthropic, OpenAI, Mistral, or Kimi key.",
     );
   }
 

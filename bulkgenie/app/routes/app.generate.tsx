@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import {
@@ -24,7 +24,6 @@ import {
   useIndexResourceState,
   Banner,
 } from "@shopify/polaris";
-import { TitleBar } from "@shopify/app-bridge-react";
 import { ImageIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
@@ -43,6 +42,28 @@ interface ShopifyProduct {
   images: {
     edges: Array<{ node: { id: string; altText: string | null } }>;
   };
+}
+
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, "").trim();
+}
+
+function missingAltCount(product: ShopifyProduct) {
+  const total = product.images.edges.length;
+  const missing = product.images.edges.filter(
+    (e) => !e.node.altText,
+  ).length;
+  return { total, missing };
+}
+
+function contentGapScore(product: ShopifyProduct) {
+  const alt = missingAltCount(product);
+  return [
+    !stripHtml(product.descriptionHtml),
+    !product.seo.title,
+    !product.seo.description,
+    alt.missing > 0,
+  ].filter(Boolean).length;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -155,7 +176,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (!shop.byokApiKey) {
     return json(
-      { error: "No API key configured. Please add your API key in Settings before generating content." },
+      {
+        error:
+          "Add an API key in Settings before generating content. BulkGenie uses your key to create drafts for review.",
+      },
       { status: 400 },
     );
   }
@@ -228,16 +252,30 @@ export default function GeneratePage() {
   const [selectedFields, setSelectedFields] =
     useState<string[]>(defaultFields);
 
+  const sortedProducts = useMemo(
+    () =>
+      [...products].sort(
+        (a: ShopifyProduct, b: ShopifyProduct) =>
+          contentGapScore(b) - contentGapScore(a) ||
+          a.title.localeCompare(b.title),
+      ),
+    [products],
+  );
+
   const resourceName = {
     singular: "product",
     plural: "products",
   };
 
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(products);
+    useIndexResourceState(sortedProducts);
 
   const handleGenerate = useCallback(() => {
-    const selectedProducts = products
+    if (!hasApiKey || !selectedResources.length || !selectedFields.length) {
+      return;
+    }
+
+    const selectedProducts = sortedProducts
       .filter((p: ShopifyProduct) => selectedResources.includes(p.id))
       .map((p: ShopifyProduct) => ({ id: p.id, title: p.title }));
 
@@ -245,15 +283,7 @@ export default function GeneratePage() {
     formData.set("selectedProducts", JSON.stringify(selectedProducts));
     formData.set("fields", JSON.stringify(selectedFields));
     submit(formData, { method: "post" });
-  }, [products, selectedResources, selectedFields, submit]);
-
-  const missingAltCount = (product: ShopifyProduct) => {
-    const total = product.images.edges.length;
-    const missing = product.images.edges.filter(
-      (e) => !e.node.altText,
-    ).length;
-    return { total, missing };
-  };
+  }, [hasApiKey, sortedProducts, selectedResources, selectedFields, submit]);
 
   const tierLimits: Record<string, number> = {
     free: 10,
@@ -264,10 +294,21 @@ export default function GeneratePage() {
   const limit = tierLimits[shopTier] || 10;
   const remaining =
     limit === Infinity ? Infinity : Math.max(0, limit - monthlyUsage);
+  const selectedCount = selectedResources.length;
+  const overMonthlyLimit = remaining !== Infinity && selectedCount > remaining;
+  const canGenerate =
+    hasApiKey &&
+    selectedCount > 0 &&
+    selectedFields.length > 0 &&
+    !overMonthlyLimit;
+  const productsWithContentGaps = sortedProducts.filter(
+    (product: ShopifyProduct) => contentGapScore(product) > 0,
+  ).length;
 
-  const rowMarkup = products.map(
+  const rowMarkup = sortedProducts.map(
     (product: ShopifyProduct, index: number) => {
       const alt = missingAltCount(product);
+      const gapScore = contentGapScore(product);
       return (
         <IndexTable.Row
           id={product.id}
@@ -282,9 +323,14 @@ export default function GeneratePage() {
                 alt={product.title}
                 size="small"
               />
-              <Text as="span" variant="bodyMd" fontWeight="semibold">
-                {product.title}
-              </Text>
+              <BlockStack gap="100">
+                <Text as="span" variant="bodyMd" fontWeight="semibold">
+                  {product.title}
+                </Text>
+                {gapScore > 0 && (
+                  <Badge tone="attention">Needs content</Badge>
+                )}
+              </BlockStack>
             </InlineStack>
           </IndexTable.Cell>
           <IndexTable.Cell>
@@ -329,8 +375,15 @@ export default function GeneratePage() {
     <Page title="Generate Content" backAction={{ url: "/app" }}>
       <BlockStack gap="500">
         {!hasApiKey && (
-          <Banner tone="warning" title="API key required" action={{ content: "Go to Settings", url: "/app/settings" }}>
-            <p>Add your API key in Settings before generating content. Mistral AI offers a free tier.</p>
+          <Banner
+            tone="warning"
+            title="Add an API key to generate drafts"
+            action={{ content: "Add API key", url: "/app/settings" }}
+          >
+            <p>
+              Choose Anthropic, OpenAI, Mistral, or Kimi. BulkGenie will create
+              draft product content for review before anything is published.
+            </p>
           </Banner>
         )}
 
@@ -342,7 +395,16 @@ export default function GeneratePage() {
 
         {isSubmitting && (
           <Banner tone="info">
-            Generating content... This may take a moment.
+            Creating your review job. Generation continues on the next screen.
+          </Banner>
+        )}
+
+        {overMonthlyLimit && (
+          <Banner tone="critical" title="Selected products exceed your monthly limit">
+            <p>
+              You selected {selectedCount} products, but only {remaining} product
+              generations remain this month.
+            </p>
           </Banner>
         )}
 
@@ -358,7 +420,12 @@ export default function GeneratePage() {
             <Card>
               <BlockStack gap="400">
                 <Text as="h2" variant="headingMd">
-                  Select Fields to Generate
+                  Choose fields for this batch
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Products with missing descriptions, SEO titles, meta
+                  descriptions, or image alt text are shown first.{" "}
+                  {productsWithContentGaps} products on this page need content.
                 </Text>
                 <ChoiceList
                   allowMultiple
@@ -393,8 +460,9 @@ export default function GeneratePage() {
                 ]}
                 promotedBulkActions={[
                   {
-                    content: `Generate Content (${selectedResources.length})`,
+                    content: `Generate Drafts (${selectedResources.length})`,
                     onAction: handleGenerate,
+                    disabled: !canGenerate,
                   },
                 ]}
               >

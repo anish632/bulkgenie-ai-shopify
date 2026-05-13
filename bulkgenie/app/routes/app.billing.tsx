@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Shop } from "@prisma/client";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRouteError, isRouteErrorResponse } from "@remix-run/react";
@@ -26,6 +27,16 @@ import {
   getManagedPricingUrl,
   syncTierFromSubscription,
 } from "../services/billing/plans";
+
+function serializeBillingShop(
+  shop: Pick<Shop, "tier" | "monthlyUsage" | "usageResetDate">,
+) {
+  return {
+    tier: shop.tier,
+    monthlyUsage: shop.monthlyUsage,
+    usageResetDate: shop.usageResetDate,
+  };
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
@@ -65,9 +76,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           where: { shopDomain },
         });
         return json({
-          shop: updatedShop || shop,
+          shop: serializeBillingShop(updatedShop || shop),
           confirmationMessage,
           activeSubscription,
+          managedPricingUrl: getManagedPricingUrl(shopDomain),
         });
       } else if (plan && !activeSubscription) {
         // Merchant declined the charge — don't update tier
@@ -113,7 +125,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     return json({
-      shop,
+      shop: serializeBillingShop(shop),
       confirmationMessage,
       activeSubscription,
       managedPricingUrl: getManagedPricingUrl(shopDomain),

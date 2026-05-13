@@ -31,39 +31,39 @@ Upload: `listing/app-icon.png` (1200x1200 PNG)
 
 ### App introduction (max 100 chars)
 ```
-Bulk-generate product descriptions, SEO titles, meta descriptions & alt text with AI.
+Bulk-generate SEO product descriptions, meta descriptions, titles & image alt text.
 ```
 
 ### App details (max 500 chars)
 ```
-BulkGenie AI generates compelling, SEO-optimized product content across your entire catalog in minutes, not days. Select products, choose what to generate, and review everything in a spreadsheet-style editor before publishing. Nothing goes live without your approval.
+BulkGenie AI helps Shopify merchants update product descriptions, SEO titles, meta descriptions, and image alt text in bulk. Pick products, generate draft copy with your API key, review in a spreadsheet-style grid, then publish only the rows you approve. Undo keeps original content recoverable.
 ```
 
 ### Features (3-5 features, max 80 chars each)
 
 **Feature 1:**
 ```
-Bulk-generate descriptions, SEO titles, meta tags & alt text at once
+Find products missing SEO titles, meta descriptions, or image alt text
 ```
 
 **Feature 2:**
 ```
-Review and edit all AI content in a spreadsheet grid before publishing
+Generate descriptions, SEO titles, meta descriptions, and alt text in bulk
 ```
 
 **Feature 3:**
 ```
-SEO-optimized output with live character counts for titles and meta tags
+Review drafts and edit product/SEO copy before publishing
 ```
 
 **Feature 4:**
 ```
-Train your brand voice so AI writes in your tone across 8 languages
+Set brand voice so drafts match your tone across 8 languages
 ```
 
 **Feature 5:**
 ```
-Full undo support — revert any product to its original content
+Undo published product copy and SEO changes when needed
 ```
 
 ### Demo store URL
@@ -78,12 +78,12 @@ Upload `listing/screenshots/01-product-selector.png` (1600x900)
 
 | # | File | Alt text (max 64 chars) |
 |---|------|------------------------|
-| 1 | `listing/screenshots/01-product-selector.png` | Product selector with bulk checkboxes and field picker |
-| 2 | `listing/screenshots/02-review-grid.png` | Spreadsheet review grid with status badges per product |
-| 3 | `listing/screenshots/03-inline-editing.png` | Inline editing with live SEO character counter |
-| 4 | `listing/screenshots/04-brand-voice-settings.png` | AI provider and brand voice settings page |
-| 5 | `listing/screenshots/05-dashboard.png` | Dashboard showing usage stats and recent jobs |
-| 6 | `listing/screenshots/06-billing-plans.png` | Four pricing plan cards with usage meter |
+| 1 | `listing/screenshots/01-product-selector.png` | Find products missing SEO fields |
+| 2 | `listing/screenshots/02-review-grid.png` | Review generated copy before publishing |
+| 3 | `listing/screenshots/03-inline-editing.png` | Edit SEO titles with live limits |
+| 4 | `listing/screenshots/04-brand-voice-settings.png` | Bring your API key and brand voice |
+| 5 | `listing/screenshots/05-dashboard.png` | Track generation usage and jobs |
+| 6 | `listing/screenshots/06-content-quality.png` | See SEO content coverage gaps |
 
 ---
 
@@ -97,10 +97,10 @@ Set up these plans in **Partners > Apps > BulkGenie AI > Distribution > Pricing*
 
 | Plan | Price | Description |
 |------|-------|-------------|
-| **Free** | $0/month | 10 products/month, cloud AI, all 4 content fields, full undo support |
-| **Starter** | $19/month | 100 products/month, cloud AI, all 4 content fields, priority queue |
-| **Growth** | $39/month | 500 products/month, bring your own API key, brand voice training |
-| **Scale** | $79/month | Unlimited products, premium AI models, BYOK, priority support |
+| **Free** | $0/month | 10 products/month, bring your own API key, all 4 content fields, undo support |
+| **Starter** | $19/month | 100 products/month, bring your own API key, all 4 content fields, priority processing |
+| **Growth** | $39/month | 500 products/month, bring your own API key, brand voice, all 4 content fields |
+| **Scale** | $79/month | Unlimited products, bring your own API key, brand voice, priority support |
 
 ### Annual Plans (17% off)
 
@@ -116,28 +116,28 @@ Set up these plans in **Partners > Apps > BulkGenie AI > Distribution > Pricing*
 
 ### App card subtitle (max 62 chars)
 ```
-Generate product descriptions and SEO content in bulk with AI
+Bulk-generate Shopify product descriptions and SEO copy
 ```
 
 ### App store search terms (1-5 terms, max 20 chars each)
 ```
-bulk descriptions
-AI product content
+bulk product SEO
+AI descriptions
 SEO meta tags
-alt text generator
-product copywriting
+image alt text
+product copy
 ```
 
 ### Web search content (optional)
 
 **Title tag (max 60 chars):**
 ```
-BulkGenie AI - Bulk Product Descriptions & SEO for Shopify
+BulkGenie AI - Bulk Product Descriptions & Shopify SEO
 ```
 
 **Meta description (max 160 chars):**
 ```
-Generate product descriptions, SEO titles, meta descriptions, and image alt text in bulk with AI. Review in a spreadsheet editor, then publish in one click.
+Generate Shopify product descriptions, SEO titles, meta descriptions, and image alt text in bulk. Review drafts, approve rows, and undo when needed.
 ```
 
 ---
@@ -202,26 +202,27 @@ TESTING STEPS:
 
 1. Open BulkGenie AI from the Shopify admin sidebar
 2. The Dashboard shows usage stats (Products This Month, Remaining, Plan) and Recent Jobs table
-3. Click "Generate Content" in the left navigation
-4. The Product Selector page loads with all store products
-5. Note the "Missing" badges on products without descriptions or SEO data
-6. Select 3-5 products using the checkboxes
-7. In the field selector, verify all four fields are checked: Description, SEO Title, Meta Description, Alt Text
-8. Click the "Generate Content (N)" button in the bulk action bar
-9. You are redirected to the Job Review page
-10. Watch the progress bar fill as AI generates content (~2 seconds per product)
-11. Once complete, review the spreadsheet grid showing original vs generated content
-12. Click any SEO Title cell to edit inline — observe the character counter (e.g. "58/70")
-13. Click "Approve" on individual rows, or "Approve All" in the bulk action bar
-14. Click "Publish Approved" to write content back to Shopify
-15. Open a published product in Shopify admin — verify description, SEO title, meta description, and image alt text were updated
-16. Return to the Job Review page and click "Undo" on a published product
-17. Verify the product reverts to its original content in Shopify
-18. Navigate to Settings — observe AI Provider selection and Brand Voice configuration
-19. Navigate to Billing — verify all 4 plan cards display correctly
+3. Navigate to Settings and confirm an AI provider API key is saved
+4. Click "Generate Content" in the left navigation
+5. The Product Selector page loads with products missing content shown first
+6. Note the "Missing" badges on products without descriptions or SEO data
+7. Select 3-5 products using the checkboxes
+8. In the field selector, verify all four fields are checked: Description, SEO Title, Meta Description, Alt Text
+9. Click the "Generate Drafts (N)" button in the bulk action bar
+10. You are redirected to the Job Review page
+11. Watch the progress bar fill as AI generates content (~2 seconds per product)
+12. Once complete, review the spreadsheet grid showing generated descriptions, SEO copy, and image alt text
+13. Click any SEO Title cell to edit inline — observe the character counter (e.g. "58/70")
+14. Click "Approve" on individual rows, or "Approve All" in the bulk action bar
+15. Click "Publish Approved" to write content back to Shopify
+16. Open a published product in Shopify admin — verify description, SEO title, meta description, and image alt text were updated
+17. Return to the Job Review page and click "Undo" on a published product
+18. Verify the product reverts to its original content in Shopify
+19. Navigate to Settings — observe AI Provider selection and Brand Voice configuration
+20. Navigate to Billing — verify all 4 plan cards display correctly
 
 NOTES:
-- AI generation uses Claude by Anthropic (cloud mode)
+- AI generation uses the merchant-selected provider with a merchant-provided API key
 - No theme modifications are made — the app only reads/writes product data via Admin API
 - All GDPR compliance webhooks are implemented and return 200 OK
 ```
@@ -238,7 +239,7 @@ NOTES:
 | Screenshot 3 | `listing/screenshots/03-inline-editing.png` | 1600x900 |
 | Screenshot 4 | `listing/screenshots/04-brand-voice-settings.png` | 1600x900 |
 | Screenshot 5 | `listing/screenshots/05-dashboard.png` | 1600x900 |
-| Screenshot 6 | `listing/screenshots/06-billing-plans.png` | 1600x900 |
+| Screenshot 6 | `listing/screenshots/06-content-quality.png` | 1600x900 |
 
 ### Interactive demo (for Screencast URL)
 ```

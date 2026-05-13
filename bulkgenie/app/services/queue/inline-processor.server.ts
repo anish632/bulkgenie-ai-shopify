@@ -64,10 +64,10 @@ export async function processJobInline(jobId: string): Promise<void> {
         product.images?.edges?.reduce(
           (
             acc: Record<string, string>,
-            edge: { node: { altText?: string } },
+            edge: { node: { id?: string; altText?: string } },
             i: number,
           ) => {
-            acc[`img_${i}`] = edge.node.altText || "";
+            acc[edge.node.id || `img_${i}`] = edge.node.altText || "";
             return acc;
           },
           {} as Record<string, string>,

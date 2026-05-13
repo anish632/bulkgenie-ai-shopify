@@ -26,9 +26,9 @@
   <circle cx="90" cy="82" r="12" fill="rgba(255,255,255,0.2)"/>
   <line x1="85" y1="77" x2="95" y2="87" stroke="#ffffff" stroke-width="1.5"/>
   <line x1="95" y1="77" x2="85" y2="87" stroke="#ffffff" stroke-width="1.5"/>
-  <!-- Generate Content button -->
+  <!-- Generate Drafts button -->
   <rect x="1340" y="68" width="180" height="36" rx="6" fill="#008060"/>
-  <text x="1375" y="91" font-size="14" font-weight="600" fill="#ffffff">Generate Content (4)</text>
+  <text x="1384" y="91" font-size="14" font-weight="600" fill="#ffffff">Generate Drafts (4)</text>
 
   <!-- Page content area -->
   <g transform="translate(80, 128)">
@@ -41,8 +41,8 @@
     <!-- Select Fields Card -->
     <g transform="translate(0, 44)">
       <rect x="0" y="0" width="1440" height="100" rx="8" fill="#ffffff" stroke="#e1e3e5" stroke-width="1" filter="url(#cardShadow)"/>
-      <text x="24" y="32" font-size="16" font-weight="600" fill="#202223">Select Fields to Generate</text>
-      <text x="24" y="50" font-size="13" fill="#6d7175">Choose which content fields BulkGenie should generate for selected products</text>
+      <text x="24" y="32" font-size="16" font-weight="600" fill="#202223">Choose fields for this batch</text>
+      <text x="24" y="50" font-size="13" fill="#6d7175">Products missing descriptions, SEO fields, or image alt text are shown first</text>
 
       <!-- Checkboxes row -->
       <g transform="translate(24, 64)">

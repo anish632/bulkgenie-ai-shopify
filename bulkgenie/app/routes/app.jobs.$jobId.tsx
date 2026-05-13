@@ -11,7 +11,6 @@ import {
 } from "@remix-run/react";
 import {
   Page,
-  Layout,
   Card,
   BlockStack,
   Text,
@@ -22,12 +21,9 @@ import {
   TextField,
   ProgressBar,
   Banner,
-  Modal,
   useIndexResourceState,
-  Thumbnail,
 } from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
-import { ImageIcon } from "@shopify/polaris-icons";
+import { useAppBridge } from "@shopify/app-bridge-react";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
@@ -42,13 +38,71 @@ interface JobItemData {
   originalDescription: string | null;
   originalSeoTitle: string | null;
   originalSeoDesc: string | null;
+  originalAltTexts: string | null;
   generatedDescription: string | null;
   generatedSeoTitle: string | null;
   generatedSeoDesc: string | null;
+  generatedAltTexts: string | null;
   editedDescription: string | null;
   editedSeoTitle: string | null;
   editedSeoDesc: string | null;
+  editedAltTexts: string | null;
   errorMessage: string | null;
+}
+
+function parseAltTextMap(value: string | null | undefined) {
+  if (!value) return {};
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] =>
+          typeof entry[0] === "string" && typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    return {};
+  }
+}
+
+async function buildImageAltTextUpdates(
+  accessToken: string,
+  shopDomain: string,
+  productGid: string,
+  altTextsJson: string | null | undefined,
+) {
+  const altTexts = parseAltTextMap(altTextsJson);
+  if (!Object.keys(altTexts).length) return undefined;
+
+  const product = await fetchProductFromShopify(
+    accessToken,
+    shopDomain,
+    productGid,
+  );
+
+  const edges =
+    product.images?.edges as
+      | Array<{ node: { id: string; altText?: string | null } }>
+      | undefined;
+
+  const updates =
+    edges
+      ?.map((edge, index) => {
+        const altText = altTexts[edge.node.id] ?? altTexts[`img_${index}`];
+        if (typeof altText !== "string") return null;
+        return { imageId: edge.node.id, altText };
+      })
+      .filter(
+        (update): update is { imageId: string; altText: string } =>
+          Boolean(update),
+      ) || [];
+
+  return updates.length ? updates : undefined;
 }
 
 async function processOneItem(jobId: string, shopDomain: string): Promise<void> {
@@ -96,8 +150,8 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
     // Store original content for undo
     const imageAltTexts =
       product.images?.edges?.reduce(
-        (acc: Record<string, string>, edge: { node: { altText?: string } }, i: number) => {
-          acc[`img_${i}`] = edge.node.altText || "";
+        (acc: Record<string, string>, edge: { node: { id?: string; altText?: string } }, i: number) => {
+          acc[edge.node.id || `img_${i}`] = edge.node.altText || "";
           return acc;
         },
         {} as Record<string, string>,
@@ -159,16 +213,18 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
 
     // If it's a config error (no API key), fail all remaining pending items too
     if (errMsg.includes("No API key configured")) {
-      await prisma.jobItem.updateMany({
+      const failedRemaining = await prisma.jobItem.updateMany({
         where: { jobId, status: "pending" },
         data: { status: "failed", errorMessage: errMsg },
       });
-      const remainingCount = await prisma.jobItem.count({
-        where: { jobId, status: "failed", errorMessage: errMsg },
-      });
       await prisma.job.update({
         where: { id: jobId },
-        data: { status: "failed", completedAt: new Date() },
+        data: {
+          status: "failed",
+          failedCount: { increment: failedRemaining.count },
+          processedCount: { increment: failedRemaining.count },
+          completedAt: new Date(),
+        },
       });
     }
   }
@@ -302,6 +358,12 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
             item.editedSeoTitle ?? item.generatedSeoTitle ?? undefined;
           const seoDesc =
             item.editedSeoDesc ?? item.generatedSeoDesc ?? undefined;
+          const imageAltTexts = await buildImageAltTextUpdates(
+            shopSession.accessToken,
+            session.shop,
+            item.shopifyProductId,
+            item.editedAltTexts ?? item.generatedAltTexts,
+          );
 
           await updateProductInShopify(
             shopSession.accessToken,
@@ -311,6 +373,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
               descriptionHtml: desc,
               seoTitle: seoTitle,
               seoDescription: seoDesc,
+              imageAltTexts,
             },
           );
 
@@ -347,6 +410,13 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         return json({ error: "Item not published" }, { status: 400 });
       }
 
+      const imageAltTexts = await buildImageAltTextUpdates(
+        shopSession.accessToken,
+        session.shop,
+        item.shopifyProductId,
+        item.originalAltTexts,
+      );
+
       await updateProductInShopify(
         shopSession.accessToken,
         session.shop,
@@ -355,6 +425,7 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
           descriptionHtml: item.originalDescription || undefined,
           seoTitle: item.originalSeoTitle || undefined,
           seoDescription: item.originalSeoDesc || undefined,
+          imageAltTexts,
         },
       );
 
@@ -559,6 +630,19 @@ export default function JobReviewPage() {
     return editedMap[field] ?? generatedMap[field] ?? "";
   };
 
+  const getAltTextSummary = (item: JobItemData) => {
+    const altTextMap = parseAltTextMap(
+      item.editedAltTexts ?? item.generatedAltTexts,
+    );
+    const values = Object.values(altTextMap).filter(Boolean);
+    if (!values.length) return "";
+
+    const firstAltText = values[0];
+    return values.length === 1
+      ? firstAltText
+      : `${values.length} images: ${firstAltText}`;
+  };
+
   const approvedCount = job.items.filter(
     (i: JobItemData) => i.status === "approved",
   ).length;
@@ -568,11 +652,16 @@ export default function JobReviewPage() {
   const publishedCount = job.items.filter(
     (i: JobItemData) => i.status === "published",
   ).length;
+  const publishedSuccess =
+    actionData &&
+    "published" in actionData &&
+    Number(actionData.published) > 0;
 
   const rowMarkup = job.items.map((item: JobItemData, index: number) => {
     const descValue = getDisplayValue(item, "description");
     const seoTitleValue = getDisplayValue(item, "seoTitle");
     const seoDescValue = getDisplayValue(item, "seoDescription");
+    const altTextSummary = getAltTextSummary(item);
 
     return (
       <IndexTable.Row
@@ -778,6 +867,11 @@ export default function JobReviewPage() {
           )}
         </IndexTable.Cell>
         <IndexTable.Cell>
+          <Text as="span" variant="bodyMd" truncate>
+            {altTextSummary || "—"}
+          </Text>
+        </IndexTable.Cell>
+        <IndexTable.Cell>
           <InlineStack gap="200">
             {(item.status === "generated" || item.status === "approved") && (
               <>
@@ -902,6 +996,28 @@ export default function JobReviewPage() {
             </Banner>
           )}
 
+        {publishedSuccess && (
+          <Banner
+            tone="success"
+            title={`${(actionData as { published: number }).published} products published to Shopify`}
+          >
+            <BlockStack gap="200">
+              <p>
+                Check the updated products in Shopify. When the batch looks
+                right, a review helps other merchants find BulkGenie.
+              </p>
+              <InlineStack>
+                <Button
+                  url="https://apps.shopify.com/bulkgenie-ai"
+                  target="_blank"
+                >
+                  Write a review
+                </Button>
+              </InlineStack>
+            </BlockStack>
+          </Banner>
+        )}
+
         {/* Spreadsheet grid */}
         <Card padding="0">
           <IndexTable
@@ -916,6 +1032,7 @@ export default function JobReviewPage() {
               { title: "Description" },
               { title: "SEO Title" },
               { title: "Meta Description" },
+              { title: "Image Alt Text" },
               { title: "Actions" },
             ]}
           >
