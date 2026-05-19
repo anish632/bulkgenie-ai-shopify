@@ -353,6 +353,14 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
     }
 
     case "publish_approved": {
+      // Count previously published items for this shop to detect first-ever publish
+      const prevPublishedCount = await prisma.jobItem.count({
+        where: {
+          status: "published",
+          job: { shopDomain: session.shop },
+        },
+      });
+
       const approvedItems = job.items.filter(
         (item) => item.status === "approved",
       );
@@ -414,10 +422,15 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         }
       }
 
+      const isFirstPublish = prevPublishedCount === 0 && publishedCount > 0;
+      if (isFirstPublish) {
+        console.log(JSON.stringify({ event: "first_reviewed_publish", publishedCount, ts: new Date().toISOString() }));
+      }
       return json({
         success: true,
         published: publishedCount,
         errors,
+        isFirstPublish,
       });
     }
 
@@ -609,6 +622,47 @@ export default function JobReviewPage() {
     submit(formData, { method: "post" });
   }, [submit]);
 
+  const handleExportCSV = useCallback(() => {
+    console.log(JSON.stringify({ event: "seo_gap_report_exported", jobId: job.id, ts: new Date().toISOString() }));
+    const headers = ["Product", "Field", "Original Value", "Generated/Edited Value", "Status"];
+    const rows: string[][] = [];
+
+    (job.items as JobItemData[]).forEach((item) => {
+      const descValue = getDisplayValue(item, "description");
+      const seoTitleValue = getDisplayValue(item, "seoTitle");
+      const seoDescValue = getDisplayValue(item, "seoDescription");
+      const altMap = parseAltTextMap(item.editedAltTexts ?? item.generatedAltTexts);
+      const origAltMap = parseAltTextMap(item.originalAltTexts);
+
+      if (descValue) {
+        rows.push([item.productTitle, "Description", stripHtml(item.originalDescription || ""), stripHtml(descValue), item.status]);
+      }
+      if (seoTitleValue) {
+        rows.push([item.productTitle, "SEO Title", item.originalSeoTitle || "", seoTitleValue, item.status]);
+      }
+      if (seoDescValue) {
+        rows.push([item.productTitle, "Meta Description", item.originalSeoDesc || "", seoDescValue, item.status]);
+      }
+      Object.entries(altMap).forEach(([id, suggested], idx) => {
+        const original = origAltMap[id] ?? "";
+        rows.push([item.productTitle, `Image alt text (${idx + 1})`, original, sanitizeGeneratedContent(suggested), item.status]);
+      });
+    });
+
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `seo-gap-report-${job.id.slice(0, 8)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [job]);
+
   const statusBadge = (status: string) => {
     switch (status) {
       case "generated":
@@ -770,6 +824,17 @@ export default function JobReviewPage() {
     actionData &&
     "published" in actionData &&
     Number(actionData.published) > 0;
+  const isFirstPublish =
+    actionData &&
+    "isFirstPublish" in actionData &&
+    Boolean((actionData as { isFirstPublish?: boolean }).isFirstPublish);
+
+  // Analytics: fire once when earned review prompt is shown
+  useEffect(() => {
+    if (isFirstPublish) {
+      console.log(JSON.stringify({ event: "review_prompt_shown", ts: new Date().toISOString() }));
+    }
+  }, [isFirstPublish]);
 
   const reviewCards = job.items.map((item: JobItemData) => {
     const descValue = getDisplayValue(item, "description");
@@ -926,6 +991,11 @@ export default function JobReviewPage() {
                     {`Publish Approved (${approvedCount})`}
                   </Button>
                 )}
+                {publishedCount > 0 && (
+                  <Button variant="plain" onClick={handleExportCSV}>
+                    Download SEO Gap Report
+                  </Button>
+                )}
               </InlineStack>
             </InlineStack>
             <ProgressBar progress={progressPercent} size="small" />
@@ -961,25 +1031,39 @@ export default function JobReviewPage() {
             </Banner>
           )}
 
-        {publishedSuccess && (
+        {/* Earned review prompt — shown only after first-ever publish */}
+        {isFirstPublish && (
           <Banner
             tone="success"
             title={`${(actionData as { published: number }).published} products published to Shopify`}
           >
             <BlockStack gap="200">
               <p>
-                Check the updated products in Shopify. When the batch looks
-                right, a review helps other merchants find BulkGenie.
+                Check the updated products in Shopify. If the changes look
+                right, a quick review helps other merchants find BulkGenie.
               </p>
               <InlineStack>
                 <Button
                   url="https://apps.shopify.com/bulkgenie-ai"
                   target="_blank"
+                  onClick={() =>
+                    console.log(JSON.stringify({ event: "review_click", ts: new Date().toISOString() }))
+                  }
                 >
                   Write a review
                 </Button>
               </InlineStack>
             </BlockStack>
+          </Banner>
+        )}
+
+        {/* Publish success (non-first — no review prompt) */}
+        {publishedSuccess && !isFirstPublish && (
+          <Banner
+            tone="success"
+            title={`${(actionData as { published: number }).published} products published to Shopify`}
+          >
+            <p>Check the updated products in your Shopify admin.</p>
           </Banner>
         )}
 
