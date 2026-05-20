@@ -69,8 +69,17 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       },
     });
 
-    // Proof metrics from job history (non-critical)
-    let proofMetrics = { totalProcessed: 0, totalApproved: 0, totalPublished: 0 };
+    // Proof metrics from job history and current catalog snapshot (non-critical)
+    let proofMetrics = {
+      productsScanned: 0,
+      seoGapsFound: 0,
+      altTextGaps: 0,
+      metaDescriptionGaps: 0,
+      weakTitleGaps: 0,
+      totalProcessed: 0,
+      totalApproved: 0,
+      totalPublished: 0,
+    };
     try {
       const itemStatusCounts = await prisma.jobItem.groupBy({
         by: ["status"],
@@ -81,6 +90,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         itemStatusCounts.map((r) => [r.status, r._count.status as number]),
       );
       proofMetrics = {
+        ...proofMetrics,
         totalProcessed: Object.values(statusMap).reduce((a, b) => a + b, 0),
         totalApproved: (statusMap["approved"] ?? 0) + (statusMap["published"] ?? 0),
         totalPublished: statusMap["published"] ?? 0,
@@ -98,6 +108,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           products(first: $first) {
             edges {
               node {
+                title
                 descriptionHtml
                 seo {
                   title
@@ -130,6 +141,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           ...catalogGapSummary(gaps),
           hasMore: responseJson.data.products.pageInfo.hasNextPage,
         };
+        proofMetrics = {
+          ...proofMetrics,
+          productsScanned: gapSummary.totalProducts,
+          seoGapsFound: gapSummary.totalGapCount,
+          altTextGaps: gapSummary.missingAltTextCount,
+          metaDescriptionGaps: gapSummary.missingSeoDescriptionCount,
+          weakTitleGaps: gapSummary.weakProductTitleCount,
+        };
       }
     } catch {
       // Catalog health is non-critical; proceed without it
@@ -140,6 +159,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (gapSummary && gapSummary.productsWithGaps > 0) {
         trackEvent("seo_gaps_found", {
           productsWithGaps: gapSummary.productsWithGaps,
+          gapsFound: gapSummary.totalGapCount,
           totalProducts: gapSummary.totalProducts,
           source: "dashboard_first_load",
         });
@@ -185,6 +205,7 @@ export default function Index() {
       console.log(JSON.stringify({
         event: "seo_gaps_found",
         productsWithGaps: gapSummary?.productsWithGaps,
+        gapsFound: gapSummary?.totalGapCount,
         totalProducts: gapSummary?.totalProducts,
         ts: new Date().toISOString(),
       }));
@@ -245,7 +266,26 @@ export default function Index() {
     <Text key={`sugg-${row.product}`} as="span" variant="bodySm">
       {row.suggestedValue}
     </Text>,
+    <Button key={`approve-${row.product}`} size="micro" disabled>
+      Approve
+    </Button>,
+    <Button key={`reject-${row.product}`} size="micro" disabled>
+      Reject
+    </Button>,
   ]);
+
+  const productsScannedValue = gapSummary
+    ? `${proofMetrics.productsScanned}${gapSummary.hasMore ? "+" : ""}`
+    : proofMetrics.totalProcessed;
+  const proofMetricRows = [
+    ["Products scanned", productsScannedValue],
+    ["SEO gaps found", proofMetrics.seoGapsFound],
+    ["Alt text gaps", proofMetrics.altTextGaps],
+    ["Meta description gaps", proofMetrics.metaDescriptionGaps],
+    ["Weak titles", proofMetrics.weakTitleGaps],
+    ["Rows approved", proofMetrics.totalApproved],
+    ["Changes published", proofMetrics.totalPublished],
+  ];
 
   return (
     <Page>
@@ -269,12 +309,13 @@ export default function Index() {
         {isFirstSession && hasRealGaps && gapSummary && (
           <Banner
             tone="success"
-            title={`We found ${gapSummary.productsWithGaps} product page gaps in your catalog`}
-            action={{ content: "Fix content gaps", onAction: handleScanClick }}
+            title={`We found ${gapSummary.totalGapCount} product page gaps`}
+            action={{ content: "Scan my catalog", onAction: handleScanClick }}
           >
             <p>
-              Scan your catalog to generate draft fixes for review.
-              Every change is staged for your approval before anything is published.
+              {gapSummary.productsWithGaps} of {gapSummary.totalProducts}
+              {gapSummary.hasMore ? "+" : ""} products checked need attention.
+              Every fix is staged for review before anything is published.
             </p>
           </Banner>
         )}
@@ -289,21 +330,31 @@ export default function Index() {
                     Catalog content gaps
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">
+                    {gapSummary.totalGapCount} gaps found across{" "}
                     {gapSummary.productsWithGaps} of{" "}
                     {gapSummary.totalProducts}
-                    {gapSummary.hasMore ? "+" : ""} products checked have
-                    missing or weak content
+                    {gapSummary.hasMore ? "+" : ""} products checked
                   </Text>
                 </BlockStack>
                 <Button
                   variant="primary"
-                  onClick={() => navigate("/app/generate")}
+                  onClick={handleScanClick}
                 >
-                  Fix content gaps
+                  Find my SEO gaps
                 </Button>
               </InlineStack>
               <Divider />
-              <InlineGrid columns={4} gap="400">
+              <InlineGrid columns={5} gap="400">
+                {gapSummary.weakProductTitleCount > 0 && (
+                  <BlockStack gap="100">
+                    <Text as="p" variant="headingLg" tone="critical">
+                      {gapSummary.weakProductTitleCount}
+                    </Text>
+                    <Text as="p" variant="bodySm" tone="subdued">
+                      Weak product titles
+                    </Text>
+                  </BlockStack>
+                )}
                 {gapSummary.missingSeoTitleCount > 0 && (
                   <BlockStack gap="100">
                     <Text as="p" variant="headingLg" tone="critical">
@@ -339,10 +390,10 @@ export default function Index() {
                 {gapSummary.productsWithMissingAltText > 0 && (
                   <BlockStack gap="100">
                     <Text as="p" variant="headingLg" tone="caution">
-                      {gapSummary.productsWithMissingAltText}
+                      {gapSummary.missingAltTextCount}
                     </Text>
                     <Text as="p" variant="bodySm" tone="subdued">
-                      Images without alt text
+                      Image alt text gaps
                     </Text>
                   </BlockStack>
                 )}
@@ -427,8 +478,15 @@ export default function Index() {
               </Text>
 
               <DataTable
-                columnContentTypes={["text", "text", "text", "text"]}
-                headings={["Product", "Field", "Current value", "Suggested value"]}
+                columnContentTypes={["text", "text", "text", "text", "text", "text"]}
+                headings={[
+                  "Product",
+                  "Field",
+                  "Current value",
+                  "Suggested value",
+                  "Approve",
+                  "Reject",
+                ]}
                 rows={demoRows}
               />
 
@@ -443,6 +501,34 @@ export default function Index() {
             </BlockStack>
           </Card>
         )}
+
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack align="space-between" blockAlign="center">
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingMd">
+                  Proof metrics
+                </Text>
+                <Text as="p" variant="bodyMd" tone="subdued">
+                  Real catalog and review activity only. Sample scan numbers stay labeled above.
+                </Text>
+              </BlockStack>
+              {!gapSummary && <Badge tone="info">Waiting for scan</Badge>}
+            </InlineStack>
+            <InlineGrid columns={4} gap="400">
+              {proofMetricRows.map(([label, value]) => (
+                <BlockStack gap="100" key={label}>
+                  <Text as="p" variant="headingLg">
+                    {`${value}`}
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {label}
+                  </Text>
+                </BlockStack>
+              ))}
+            </InlineGrid>
+          </BlockStack>
+        </Card>
 
         <Layout>
           <Layout.Section>
@@ -525,9 +611,9 @@ export default function Index() {
                   </Text>
                   <Button
                     variant="primary"
-                    onClick={() => navigate("/app/generate")}
+                    onClick={handleScanClick}
                   >
-                    Scan &amp; Fix Products
+                    Scan my catalog
                   </Button>
                 </InlineStack>
 

@@ -3,6 +3,7 @@ import {
   stripHtml,
   scoreProductContent,
   catalogGapSummary,
+  WEAK_PRODUCT_TITLE_CHARS,
   THIN_DESCRIPTION_CHARS,
   SEO_TITLE_MAX,
   SEO_DESCRIPTION_MAX,
@@ -10,6 +11,7 @@ import {
 } from "./scoring";
 
 function makeProduct(overrides: Partial<{
+  title: string | null;
   descriptionHtml: string;
   seoTitle: string | null;
   seoDescription: string | null;
@@ -17,6 +19,7 @@ function makeProduct(overrides: Partial<{
 }>): ProductForScoring {
   const images = overrides.images ?? [{ id: "img_1", altText: "A product" }];
   return {
+    title: "title" in overrides ? overrides.title : "A Complete Product Title",
     descriptionHtml: overrides.descriptionHtml ?? "<p>A detailed description of this great product. It covers all key features, benefits, materials, and use cases so shoppers have everything they need to make an informed purchase decision.</p>",
     seo: {
       title: "seoTitle" in overrides ? overrides.seoTitle ?? null : "Good SEO Title",
@@ -49,9 +52,23 @@ describe("scoreProductContent", () => {
     expect(gap.score).toBe(0);
     expect(gap.hasMissingDescription).toBe(false);
     expect(gap.hasThinDescription).toBe(false);
+    expect(gap.hasWeakProductTitle).toBe(false);
     expect(gap.hasMissingSeoTitle).toBe(false);
     expect(gap.hasMissingSeoDescription).toBe(false);
     expect(gap.missingAltTextCount).toBe(0);
+  });
+
+  it("flags weak product titles", () => {
+    const shortTitle = "Shorts";
+    expect(shortTitle.length).toBeLessThan(WEAK_PRODUCT_TITLE_CHARS);
+    const gap = scoreProductContent(makeProduct({ title: shortTitle }));
+    expect(gap.hasWeakProductTitle).toBe(true);
+    expect(gap.score).toBeGreaterThanOrEqual(1);
+  });
+
+  it("does not flag missing optional title as weak", () => {
+    const gap = scoreProductContent(makeProduct({ title: null }));
+    expect(gap.hasWeakProductTitle).toBe(false);
   });
 
   it("flags missing description", () => {
@@ -130,12 +147,13 @@ describe("scoreProductContent", () => {
 
   it("returns max score 4 for completely empty product", () => {
     const gap = scoreProductContent(makeProduct({
+      title: "Hat",
       descriptionHtml: "",
       seoTitle: null,
       seoDescription: null,
       images: [{ id: "img_1", altText: null }],
     }));
-    expect(gap.score).toBe(4);
+    expect(gap.score).toBe(5);
   });
 });
 
@@ -144,6 +162,7 @@ describe("catalogGapSummary", () => {
     const summary = catalogGapSummary([]);
     expect(summary.totalProducts).toBe(0);
     expect(summary.productsWithGaps).toBe(0);
+    expect(summary.totalGapCount).toBe(0);
   });
 
   it("counts products with gaps correctly", () => {
@@ -153,20 +172,25 @@ describe("catalogGapSummary", () => {
     expect(summary.totalProducts).toBe(3);
     expect(summary.productsWithGaps).toBe(2);
     expect(summary.missingSeoTitleCount).toBe(2);
+    expect(summary.totalGapCount).toBe(2);
   });
 
   it("aggregates all gap types", () => {
     const gaps = [
+      scoreProductContent(makeProduct({ title: "Hat" })),
       scoreProductContent(makeProduct({ descriptionHtml: "" })),
       scoreProductContent(makeProduct({ seoTitle: null })),
       scoreProductContent(makeProduct({ seoDescription: null })),
       scoreProductContent(makeProduct({ images: [{ id: "i", altText: null }] })),
     ];
     const summary = catalogGapSummary(gaps);
+    expect(summary.weakProductTitleCount).toBe(1);
     expect(summary.missingDescriptionCount).toBe(1);
     expect(summary.missingSeoTitleCount).toBe(1);
     expect(summary.missingSeoDescriptionCount).toBe(1);
     expect(summary.productsWithMissingAltText).toBe(1);
-    expect(summary.productsWithGaps).toBe(4);
+    expect(summary.missingAltTextCount).toBe(1);
+    expect(summary.productsWithGaps).toBe(5);
+    expect(summary.totalGapCount).toBe(5);
   });
 });

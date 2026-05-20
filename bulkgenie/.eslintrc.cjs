@@ -10,4 +10,15 @@ module.exports = {
   globals: {
     shopify: "readonly"
   },
+  settings: {
+    jest: { version: 29 },
+  },
+  overrides: [
+    {
+      files: ["**/*.test.ts", "**/*.test.tsx"],
+      rules: {
+        "jest/no-deprecated-functions": "off",
+      },
+    },
+  ],
 };

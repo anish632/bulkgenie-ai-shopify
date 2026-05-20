@@ -1,6 +1,6 @@
 # BulkGenie AI — GTM Product Audit
 
-Updated: 2026-05-19
+Updated: 2026-05-20
 
 ## Positioning
 
@@ -34,7 +34,7 @@ SEO/AEO/GEO page or Shopify marketplace search
 | How does a cold user find it? | Shopify marketplace search; SEO/AEO pages targeting "missing alt text shopify" etc. |
 | What demo/sample state shows value before setup? | Demo scan card on dashboard (47 alt text gaps, 18 meta desc, 12 weak titles, 9 missing details) |
 | What is the first-value event? | gapSummary.productsWithGaps > 0 after first catalog load |
-| What proof metric is created? | Products scanned, SEO gaps found, alt text gaps, meta desc gaps, rows approved, changes published |
+| What proof metric is created? | Products scanned, SEO gaps found, alt text gaps, meta desc gaps, weak titles, rows approved, changes published |
 | When is the earned review prompt shown? | After first-ever reviewed publish (gated by prevPublishedCount === 0 check) |
 | What artifact can be shared/exported? | SEO Gap Report CSV (product, field, original, suggested, status) |
 
@@ -49,8 +49,8 @@ SEO/AEO/GEO page or Shopify marketplace search
 | `review_prompt_shown` | Earned review banner mounts after first publish | `app.jobs.$jobId.tsx` useEffect |
 | `review_click` | "Write a review" button clicked | `app.jobs.$jobId.tsx` onClick |
 | `seo_gap_report_exported` | "Download SEO Gap Report" button clicked | `app.jobs.$jobId.tsx` handleExportCSV |
-| `paywall_viewed` | Billing page visited | TODO: add to `app.billing.tsx` |
-| `subscription_started` | Billing confirmation success | TODO: add to `app.billing.tsx` |
+| `paywall_viewed` | Billing page visited or billing confirmation return is loaded | `app.billing.tsx` loader |
+| `subscription_started` | Shopify billing confirmation returns with an active paid subscription | `app.billing.tsx` loader |
 
 All events currently log structured JSON via `console.log`. Replace with PostHog, Segment, or your analytics provider.
 
@@ -67,7 +67,7 @@ Source: `bulkgenie/app/services/demo.ts`
 | Weak product titles | 12 |
 | Missing key details | 9 |
 
-Demo review preview rows (4 samples showing product / field / current / suggested):
+Demo review preview rows (4 samples showing product / field / current / suggested / approve / reject):
 1. Merino Wool Sweater — Meta description — (missing) → suggested copy
 2. Ceramic Pour-Over Set — Image alt text — (missing) → descriptive alt text
 3. Running Shorts — SEO title — "Shorts" → improved title
@@ -75,12 +75,19 @@ Demo review preview rows (4 samples showing product / field / current / suggeste
 
 ## Proof Metrics (live, from DB)
 
-Displayed on dashboard stats row when `proofMetrics.totalPublished > 0`:
+Displayed on the dashboard proof metrics panel:
+- Products scanned
+- SEO gaps found
+- Alt text gaps
+- Meta description gaps
+- Weak titles
+- Rows Reviewed (approved + published items across all jobs)
+- Changes Published (published items across all jobs)
+
+Usage metrics remain separate:
 - Products This Month (from shop.monthlyUsage)
 - Remaining (tier limit - usage)
 - Plan (shop.tier)
-- Rows Reviewed (approved + published items across all jobs)
-- Changes Published (published items across all jobs)
 
 ## Constraints
 
@@ -100,8 +107,6 @@ Displayed on dashboard stats row when `proofMetrics.totalPublished > 0`:
 
 ## Known Gaps / Next Actions
 
-1. Add `paywall_viewed` event to `app.billing.tsx` on page load
-2. Add `subscription_started` event to `app.billing.tsx` when `confirmationMessage` includes success
-3. Wire `trackEvent` to a real analytics provider (PostHog recommended for Shopify apps)
-4. Add `app.generate.tsx` scan page CTA copy: "Find my SEO gaps" → already present as the page heading
-5. SEO landing page (deferred until first conversion data exists per CODEX rules)
+1. Wire `trackEvent` to a real analytics provider (PostHog recommended for Shopify apps)
+2. Add durable event storage if Shopify embedded-app console logs are not enough for attribution
+3. SEO landing page (deferred until first conversion data exists per CODEX rules)

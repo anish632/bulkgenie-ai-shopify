@@ -21,6 +21,7 @@ import {
 } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { trackEvent } from "../services/demo";
 import {
   PLANS,
   TRIAL_DAYS,
@@ -72,6 +73,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           syncedTier === confirmedPlan
             ? `Successfully subscribed to ${plan.name} plan!`
             : "Subscription confirmed. Your plan has been synced from Shopify.";
+        trackEvent("subscription_started", {
+          plan: syncedTier,
+          source: "billing_confirmation",
+        });
+        trackEvent("paywall_viewed", {
+          currentTier: syncedTier,
+          source: "billing_confirmation",
+        });
         const updatedShop = await prisma.shop.findUnique({
           where: { shopDomain },
         });
@@ -97,6 +106,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       confirmationMessage = activeSubscription
         ? "Subscription updated. Your plan has been synced from Shopify."
         : "Plan selection completed. Your current plan is Free.";
+      if (activeSubscription && syncedTier !== "free") {
+        trackEvent("subscription_started", {
+          plan: syncedTier,
+          source: "charge_return",
+        });
+      }
     } else {
       // Sync local tier with Shopify subscription state
       const syncedTier = syncTierFromSubscription(activeSubscription);
@@ -123,6 +138,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop.monthlyUsage = 0;
       shop.usageResetDate = now;
     }
+
+    trackEvent("paywall_viewed", {
+      currentTier: shop.tier,
+      hasActiveSubscription: Boolean(activeSubscription),
+      source: "billing_page",
+    });
 
     return json({
       shop: serializeBillingShop(shop),

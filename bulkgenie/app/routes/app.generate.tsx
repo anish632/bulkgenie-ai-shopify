@@ -28,8 +28,13 @@ import { ImageIcon } from "@shopify/polaris-icons";
 
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import {
+  scoreProductContent,
+  catalogGapSummary,
+  type ProductForScoring,
+} from "../services/scoring";
 
-interface ShopifyProduct {
+interface ShopifyProduct extends ProductForScoring {
   id: string;
   title: string;
   productType: string;
@@ -37,33 +42,6 @@ interface ShopifyProduct {
   status: string;
   cursor: string;
   featuredImage: { url: string; altText: string | null } | null;
-  seo: { title: string | null; description: string | null };
-  descriptionHtml: string;
-  images: {
-    edges: Array<{ node: { id: string; altText: string | null } }>;
-  };
-}
-
-function stripHtml(value: string) {
-  return value.replace(/<[^>]*>/g, "").trim();
-}
-
-function missingAltCount(product: ShopifyProduct) {
-  const total = product.images.edges.length;
-  const missing = product.images.edges.filter(
-    (e) => !e.node.altText,
-  ).length;
-  return { total, missing };
-}
-
-function contentGapScore(product: ShopifyProduct) {
-  const alt = missingAltCount(product);
-  return [
-    !stripHtml(product.descriptionHtml),
-    !product.seo.title,
-    !product.seo.description,
-    alt.missing > 0,
-  ].filter(Boolean).length;
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -126,11 +104,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   );
 
     const responseJson = await response.json();
-    
+
     if (!responseJson.data?.products) {
       throw new Error("Failed to fetch products from Shopify");
     }
-    
+
     const products = responseJson.data.products;
 
     return json({
@@ -225,7 +203,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       data: { monthlyUsage: { increment: selectedProducts.length } },
     });
 
-    // Redirect immediately — processing happens via job page polling
     return redirect(`/app/jobs/${job.id}`);
   } catch (error) {
     console.error("[Generate] Error:", error);
@@ -251,15 +228,29 @@ export default function GeneratePage() {
 
   const [selectedFields, setSelectedFields] =
     useState<string[]>(defaultFields);
+  const [showGapsOnly, setShowGapsOnly] = useState(false);
 
   const sortedProducts = useMemo(
     () =>
       [...products].sort(
         (a: ShopifyProduct, b: ShopifyProduct) =>
-          contentGapScore(b) - contentGapScore(a) ||
+          scoreProductContent(b).score - scoreProductContent(a).score ||
           a.title.localeCompare(b.title),
       ),
     [products],
+  );
+
+  const filteredProducts = useMemo(
+    () =>
+      showGapsOnly
+        ? sortedProducts.filter((p: ShopifyProduct) => scoreProductContent(p).score > 0)
+        : sortedProducts,
+    [sortedProducts, showGapsOnly],
+  );
+
+  const gapSummary = useMemo(
+    () => catalogGapSummary(sortedProducts.map(scoreProductContent)),
+    [sortedProducts],
   );
 
   const resourceName = {
@@ -267,15 +258,23 @@ export default function GeneratePage() {
     plural: "products",
   };
 
-  const { selectedResources, allResourcesSelected, handleSelectionChange } =
-    useIndexResourceState(sortedProducts);
+  const { selectedResources, allResourcesSelected, handleSelectionChange, clearSelection } =
+    useIndexResourceState(filteredProducts);
+
+  const handleToggleGapsFilter = useCallback(
+    (value: boolean) => {
+      clearSelection();
+      setShowGapsOnly(value);
+    },
+    [clearSelection],
+  );
 
   const handleGenerate = useCallback(() => {
     if (!hasApiKey || !selectedResources.length || !selectedFields.length) {
       return;
     }
 
-    const selectedProducts = sortedProducts
+    const selectedProducts = filteredProducts
       .filter((p: ShopifyProduct) => selectedResources.includes(p.id))
       .map((p: ShopifyProduct) => ({ id: p.id, title: p.title }));
 
@@ -283,7 +282,7 @@ export default function GeneratePage() {
     formData.set("selectedProducts", JSON.stringify(selectedProducts));
     formData.set("fields", JSON.stringify(selectedFields));
     submit(formData, { method: "post" });
-  }, [hasApiKey, sortedProducts, selectedResources, selectedFields, submit]);
+  }, [hasApiKey, filteredProducts, selectedResources, selectedFields, submit]);
 
   const tierLimits: Record<string, number> = {
     free: 10,
@@ -301,14 +300,10 @@ export default function GeneratePage() {
     selectedCount > 0 &&
     selectedFields.length > 0 &&
     !overMonthlyLimit;
-  const productsWithContentGaps = sortedProducts.filter(
-    (product: ShopifyProduct) => contentGapScore(product) > 0,
-  ).length;
 
-  const rowMarkup = sortedProducts.map(
+  const rowMarkup = filteredProducts.map(
     (product: ShopifyProduct, index: number) => {
-      const alt = missingAltCount(product);
-      const gapScore = contentGapScore(product);
+      const gap = scoreProductContent(product);
       return (
         <IndexTable.Row
           id={product.id}
@@ -327,42 +322,54 @@ export default function GeneratePage() {
                 <Text as="span" variant="bodyMd" fontWeight="semibold">
                   {product.title}
                 </Text>
-                {gapScore > 0 && (
-                  <Badge tone="attention">Needs content</Badge>
-                )}
+                <InlineStack gap="100" wrap>
+                  {gap.hasWeakProductTitle && (
+                    <Badge tone="critical" size="small">Weak title</Badge>
+                  )}
+                  {gap.hasMissingDescription && (
+                    <Badge tone="critical" size="small">No description</Badge>
+                  )}
+                  {gap.hasThinDescription && (
+                    <Badge tone="attention" size="small">Thin description</Badge>
+                  )}
+                </InlineStack>
               </BlockStack>
             </InlineStack>
           </IndexTable.Cell>
           <IndexTable.Cell>
-            {product.seo.title ? (
+            {gap.hasMissingSeoTitle ? (
+              <Badge tone="warning">Missing</Badge>
+            ) : gap.seoTitleTooLong ? (
+              <Badge tone="attention">Too long</Badge>
+            ) : (
               <Text as="span" variant="bodyMd" truncate>
                 {product.seo.title}
               </Text>
-            ) : (
-              <Badge tone="warning">Missing</Badge>
             )}
           </IndexTable.Cell>
           <IndexTable.Cell>
-            {product.seo.description ? (
+            {gap.hasMissingSeoDescription ? (
+              <Badge tone="warning">Missing</Badge>
+            ) : gap.seoDescriptionTooLong ? (
+              <Badge tone="attention">Too long</Badge>
+            ) : (
               <Text as="span" variant="bodyMd" truncate>
-                {product.seo.description.substring(0, 60)}...
+                {product.seo.description?.substring(0, 60)}...
               </Text>
-            ) : (
-              <Badge tone="warning">Missing</Badge>
             )}
           </IndexTable.Cell>
           <IndexTable.Cell>
-            {alt.total === 0 ? (
+            {gap.totalImageCount === 0 ? (
               <Text as="span" tone="subdued">
                 No images
               </Text>
-            ) : alt.missing > 0 ? (
+            ) : gap.missingAltTextCount > 0 ? (
               <Badge tone="warning">
-                {`${alt.missing}/${alt.total} missing`}
+                {`${gap.missingAltTextCount}/${gap.totalImageCount} missing`}
               </Badge>
             ) : (
               <Badge tone="success">
-                {`${alt.total}/${alt.total} done`}
+                {`${gap.totalImageCount}/${gap.totalImageCount} done`}
               </Badge>
             )}
           </IndexTable.Cell>
@@ -372,16 +379,16 @@ export default function GeneratePage() {
   );
 
   return (
-    <Page title="Generate Content" backAction={{ url: "/app" }}>
+    <Page title="Scan & Fix Product Pages" backAction={{ url: "/app" }}>
       <BlockStack gap="500">
         {!hasApiKey && (
           <Banner
             tone="warning"
-            title="Add an API key to generate drafts"
+            title="Add an API key to generate draft content"
             action={{ content: "Add API key", url: "/app/settings" }}
           >
             <p>
-              Choose Anthropic, OpenAI, Mistral, or Kimi. BulkGenie will create
+              Choose Anthropic, OpenAI, Mistral, or Kimi. BulkGenie creates
               draft product content for review before anything is published.
             </p>
           </Banner>
@@ -415,6 +422,88 @@ export default function GeneratePage() {
           </Banner>
         )}
 
+        {/* Catalog Health Summary */}
+        {gapSummary.totalProducts > 0 && (
+          <Card>
+            <BlockStack gap="300">
+              <InlineStack align="space-between" blockAlign="center">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingMd">
+                    Catalog content coverage
+                  </Text>
+                  <Text as="p" variant="bodyMd" tone="subdued">
+                    {gapSummary.productsWithGaps > 0
+                      ? `${gapSummary.productsWithGaps} of ${gapSummary.totalProducts} products checked need attention`
+                      : `All ${gapSummary.totalProducts} products checked look complete`}
+                  </Text>
+                </BlockStack>
+                {gapSummary.productsWithGaps > 0 && (
+                  <Button
+                    variant={showGapsOnly ? "plain" : "secondary"}
+                    onClick={() => handleToggleGapsFilter(!showGapsOnly)}
+                  >
+                    {showGapsOnly
+                      ? "Show all products"
+                      : `Show ${gapSummary.productsWithGaps} with gaps`}
+                  </Button>
+                )}
+              </InlineStack>
+              {gapSummary.productsWithGaps > 0 && (
+                <InlineStack gap="400" wrap>
+                  {gapSummary.missingDescriptionCount > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="critical">
+                        {gapSummary.missingDescriptionCount}
+                      </Text>{" "}
+                      missing description
+                    </Text>
+                  )}
+                  {gapSummary.thinDescriptionCount > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="caution">
+                        {gapSummary.thinDescriptionCount}
+                      </Text>{" "}
+                      thin description
+                    </Text>
+                  )}
+                  {gapSummary.weakProductTitleCount > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="critical">
+                        {gapSummary.weakProductTitleCount}
+                      </Text>{" "}
+                      weak product title
+                    </Text>
+                  )}
+                  {gapSummary.missingSeoTitleCount > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="critical">
+                        {gapSummary.missingSeoTitleCount}
+                      </Text>{" "}
+                      missing SEO title
+                    </Text>
+                  )}
+                  {gapSummary.missingSeoDescriptionCount > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="critical">
+                        {gapSummary.missingSeoDescriptionCount}
+                      </Text>{" "}
+                      missing meta description
+                    </Text>
+                  )}
+                  {gapSummary.productsWithMissingAltText > 0 && (
+                    <Text as="span" variant="bodySm" tone="subdued">
+                      <Text as="span" variant="bodySm" fontWeight="semibold" tone="caution">
+                        {gapSummary.missingAltTextCount}
+                      </Text>{" "}
+                      image alt text gaps
+                    </Text>
+                  )}
+                </InlineStack>
+              )}
+            </BlockStack>
+          </Card>
+        )}
+
         <Layout>
           <Layout.Section>
             <Card>
@@ -423,9 +512,8 @@ export default function GeneratePage() {
                   Choose fields for this batch
                 </Text>
                 <Text as="p" variant="bodyMd" tone="subdued">
-                  Products with missing descriptions, SEO titles, meta
-                  descriptions, or image alt text are shown first.{" "}
-                  {productsWithContentGaps} products on this page need content.
+                  Products missing descriptions, SEO titles, meta descriptions,
+                  or image alt text are sorted to the top.
                 </Text>
                 <ChoiceList
                   allowMultiple
@@ -447,7 +535,7 @@ export default function GeneratePage() {
             <Card padding="0">
               <IndexTable
                 resourceName={resourceName}
-                itemCount={products.length}
+                itemCount={filteredProducts.length}
                 selectedItemsCount={
                   allResourcesSelected ? "All" : selectedResources.length
                 }
@@ -465,6 +553,13 @@ export default function GeneratePage() {
                     disabled: !canGenerate,
                   },
                 ]}
+                emptyState={
+                  showGapsOnly ? (
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      No products with content gaps found in this batch.
+                    </Text>
+                  ) : undefined
+                }
               >
                 {rowMarkup}
               </IndexTable>
@@ -488,9 +583,9 @@ export default function GeneratePage() {
 
 export function ErrorBoundary() {
   const error = useRouteError();
-  
+
   let errorMessage = "An unexpected error occurred";
-  
+
   if (isRouteErrorResponse(error)) {
     errorMessage = error.statusText || error.data;
   } else if (error instanceof Error) {
@@ -498,7 +593,7 @@ export function ErrorBoundary() {
   }
 
   return (
-    <Page title="Generate Content" backAction={{ url: "/app" }}>
+    <Page title="Scan & Fix Product Pages" backAction={{ url: "/app" }}>
       <Banner tone="critical" title="Error loading products">
         <p>{errorMessage}</p>
       </Banner>
