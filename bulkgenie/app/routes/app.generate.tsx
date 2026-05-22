@@ -198,11 +198,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    await prisma.shop.update({
-      where: { shopDomain },
-      data: { monthlyUsage: { increment: selectedProducts.length } },
-    });
-
     return redirect(`/app/jobs/${job.id}`);
   } catch (error) {
     console.error("[Generate] Error:", error);

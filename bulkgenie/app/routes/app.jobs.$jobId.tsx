@@ -31,6 +31,10 @@ import {
 } from "../services/shopify/products";
 import { getAIProvider } from "../services/ai/factory";
 import { sanitizeGeneratedContent } from "../services/ai/provider";
+import {
+  isFatalProviderSetupError,
+  normalizeJobError,
+} from "../services/jobs/errors";
 
 interface JobItemData {
   id: string;
@@ -116,17 +120,41 @@ async function buildImageAltTextUpdates(
   return updates.length ? updates : undefined;
 }
 
-async function processOneItem(jobId: string, shopDomain: string): Promise<void> {
+async function claimNextPendingItem(jobId: string) {
   const pendingItem = await prisma.jobItem.findFirst({
     where: { jobId, status: "pending" },
     orderBy: { createdAt: "asc" },
   });
 
+  if (!pendingItem) return null;
+
+  const claimed = await prisma.jobItem.updateMany({
+    where: { id: pendingItem.id, status: "pending" },
+    data: { status: "processing" },
+  });
+
+  return claimed.count === 1 ? pendingItem : null;
+}
+
+async function processOneItem(jobId: string, shopDomain: string): Promise<void> {
+  const pendingItem = await claimNextPendingItem(jobId);
+
   if (!pendingItem) {
-    // No more pending items — mark job as completed
+    const remainingPending = await prisma.jobItem.count({
+      where: { jobId, status: "pending" },
+    });
+    if (remainingPending > 0) return;
+
+    const failedCount = await prisma.jobItem.count({
+      where: { jobId, status: "failed" },
+    });
+
     await prisma.job.update({
       where: { id: jobId },
-      data: { status: "completed", completedAt: new Date() },
+      data: {
+        status: failedCount > 0 ? "failed" : "completed",
+        completedAt: new Date(),
+      },
     });
     return;
   }
@@ -147,10 +175,6 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
 
   try {
     const provider = getAIProvider(shop);
-    await prisma.jobItem.update({
-      where: { id: pendingItem.id },
-      data: { status: "processing" },
-    });
 
     const product = await fetchProductFromShopify(
       shopSession.accessToken,
@@ -192,23 +216,28 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
       fieldsToGenerate: fields,
     });
 
-    await prisma.jobItem.update({
-      where: { id: pendingItem.id },
-      data: {
-        status: "generated",
-        generatedDescription: result.description || null,
-        generatedSeoTitle: result.seoTitle || null,
-        generatedSeoDesc: result.seoDescription || null,
-        generatedAltTexts: result.altTexts ? JSON.stringify(result.altTexts) : null,
-      },
-    });
-
-    await prisma.job.update({
-      where: { id: jobId },
-      data: { processedCount: { increment: 1 } },
-    });
+    await prisma.$transaction([
+      prisma.jobItem.update({
+        where: { id: pendingItem.id },
+        data: {
+          status: "generated",
+          generatedDescription: result.description || null,
+          generatedSeoTitle: result.seoTitle || null,
+          generatedSeoDesc: result.seoDescription || null,
+          generatedAltTexts: result.altTexts ? JSON.stringify(result.altTexts) : null,
+        },
+      }),
+      prisma.job.update({
+        where: { id: jobId },
+        data: { processedCount: { increment: 1 } },
+      }),
+      prisma.shop.update({
+        where: { shopDomain },
+        data: { monthlyUsage: { increment: 1 } },
+      }),
+    ]);
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : "Unknown error";
+    const errMsg = normalizeJobError(error);
     console.error(`[JobLoader] Failed to process item ${pendingItem.id}:`, errMsg);
     await prisma.jobItem.update({
       where: { id: pendingItem.id },
@@ -222,8 +251,7 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
       data: { failedCount: { increment: 1 }, processedCount: { increment: 1 } },
     });
 
-    // If it's a config error (no API key), fail all remaining pending items too
-    if (errMsg.includes("No API key configured")) {
+    if (isFatalProviderSetupError(errMsg)) {
       const failedRemaining = await prisma.jobItem.updateMany({
         where: { jobId, status: "pending" },
         data: { status: "failed", errorMessage: errMsg },

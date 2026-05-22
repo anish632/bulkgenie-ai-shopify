@@ -1,6 +1,7 @@
 import prisma from "../../db.server";
 import { getAIProvider } from "../ai/factory";
 import { fetchProductFromShopify } from "../shopify/products";
+import { isFatalProviderSetupError, normalizeJobError } from "../jobs/errors";
 
 /**
  * Process a content generation job synchronously (inline).
@@ -102,38 +103,40 @@ export async function processJobInline(jobId: string): Promise<void> {
       });
 
       // Store generated content (NOT published yet — merchant reviews first)
-      await prisma.jobItem.update({
-        where: { id: item.id },
-        data: {
-          status: "generated",
-          generatedDescription: result.description || null,
-          generatedSeoTitle: result.seoTitle || null,
-          generatedSeoDesc: result.seoDescription || null,
-          generatedAltTexts: result.altTexts
-            ? JSON.stringify(result.altTexts)
-            : null,
-        },
-      });
-
-      await prisma.job.update({
-        where: { id: jobId },
-        data: { processedCount: { increment: 1 } },
-      });
+      await prisma.$transaction([
+        prisma.jobItem.update({
+          where: { id: item.id },
+          data: {
+            status: "generated",
+            generatedDescription: result.description || null,
+            generatedSeoTitle: result.seoTitle || null,
+            generatedSeoDesc: result.seoDescription || null,
+            generatedAltTexts: result.altTexts
+              ? JSON.stringify(result.altTexts)
+              : null,
+          },
+        }),
+        prisma.job.update({
+          where: { id: jobId },
+          data: { processedCount: { increment: 1 } },
+        }),
+        prisma.shop.update({
+          where: { shopDomain: job.shopDomain },
+          data: { monthlyUsage: { increment: 1 } },
+        }),
+      ]);
 
       // Rate limiting delay between products
       await new Promise((resolve) => setTimeout(resolve, 250));
     } catch (error) {
-      console.error(
-        `[InlineProcessor] Failed to process item ${item.id}:`,
-        error,
-      );
+      const errMsg = normalizeJobError(error);
+      console.error(`[InlineProcessor] Failed to process item ${item.id}:`, errMsg);
 
       await prisma.jobItem.update({
         where: { id: item.id },
         data: {
           status: "failed",
-          errorMessage:
-            error instanceof Error ? error.message : "Unknown error",
+          errorMessage: errMsg,
         },
       });
 
@@ -144,13 +147,34 @@ export async function processJobInline(jobId: string): Promise<void> {
           processedCount: { increment: 1 },
         },
       });
+
+      if (isFatalProviderSetupError(errMsg)) {
+        const failedRemaining = await prisma.jobItem.updateMany({
+          where: { jobId, status: "pending" },
+          data: { status: "failed", errorMessage: errMsg },
+        });
+        await prisma.job.update({
+          where: { id: jobId },
+          data: {
+            status: "failed",
+            failedCount: { increment: failedRemaining.count },
+            processedCount: { increment: failedRemaining.count },
+            completedAt: new Date(),
+          },
+        });
+        return;
+      }
     }
   }
+
+  const failedCount = await prisma.jobItem.count({
+    where: { jobId, status: "failed" },
+  });
 
   await prisma.job.update({
     where: { id: jobId },
     data: {
-      status: "completed",
+      status: failedCount > 0 ? "failed" : "completed",
       completedAt: new Date(),
     },
   });
