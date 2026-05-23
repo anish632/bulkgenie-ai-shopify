@@ -1,7 +1,7 @@
 import prisma from "../../db.server";
 import { getAIProvider } from "../ai/factory";
 import { fetchProductFromShopify } from "../shopify/products";
-import { isFatalProviderSetupError, normalizeJobError } from "../jobs/errors";
+import { classifyJobError, isFatalProviderSetupError } from "../jobs/errors";
 
 /**
  * Process a content generation job synchronously (inline).
@@ -129,7 +129,8 @@ export async function processJobInline(jobId: string): Promise<void> {
       // Rate limiting delay between products
       await new Promise((resolve) => setTimeout(resolve, 250));
     } catch (error) {
-      const errMsg = normalizeJobError(error);
+      const { category, message } = classifyJobError(error);
+      const errMsg = `${category}: ${message}`;
       console.error(`[InlineProcessor] Failed to process item ${item.id}:`, errMsg);
 
       await prisma.jobItem.update({

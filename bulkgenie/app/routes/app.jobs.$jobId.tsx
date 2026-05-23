@@ -32,8 +32,8 @@ import {
 import { getAIProvider } from "../services/ai/factory";
 import { sanitizeGeneratedContent } from "../services/ai/provider";
 import {
+  classifyJobError,
   isFatalProviderSetupError,
-  normalizeJobError,
 } from "../services/jobs/errors";
 
 interface JobItemData {
@@ -237,7 +237,8 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
       }),
     ]);
   } catch (error) {
-    const errMsg = normalizeJobError(error);
+    const { category, message } = classifyJobError(error);
+    const errMsg = `${category}: ${message}`;
     console.error(`[JobLoader] Failed to process item ${pendingItem.id}:`, errMsg);
     await prisma.jobItem.update({
       where: { id: pendingItem.id },
@@ -453,6 +454,24 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
       const isFirstPublish = prevPublishedCount === 0 && publishedCount > 0;
       if (isFirstPublish) {
         console.log(JSON.stringify({ event: "first_reviewed_publish", publishedCount, ts: new Date().toISOString() }));
+      }
+
+      if (publishedCount === 0 && errors.length > 0) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: "failed",
+            completedAt: new Date(),
+          },
+        });
+      } else if (publishedCount > 0) {
+        await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: errors.length > 0 ? "completed" : "completed",
+            completedAt: new Date(),
+          },
+        });
       }
       return json({
         success: true,
@@ -848,6 +867,13 @@ export default function JobReviewPage() {
   const publishedCount = job.items.filter(
     (i: JobItemData) => i.status === "published",
   ).length;
+  const failedItems = job.items.filter((i: JobItemData) => i.status === "failed");
+  const failureSummary = failedItems.reduce<Record<string, number>>((acc, item) => {
+    const category = item.errorMessage?.split(":")[0]?.trim() || "unknown";
+    acc[category] = (acc[category] || 0) + 1;
+    return acc;
+  }, {});
+  const topFailureCategory = Object.entries(failureSummary).sort((a, b) => b[1] - a[1])[0];
   const publishedSuccess =
     actionData &&
     "published" in actionData &&
@@ -1058,6 +1084,21 @@ export default function JobReviewPage() {
               </ul>
             </Banner>
           )}
+
+        {failedItems.length > 0 && topFailureCategory && (
+          <Banner tone="warning" title={`${failedItems.length} items failed during review or publish`}>
+            <BlockStack gap="200">
+              <Text as="p">
+                Most failures are in <strong>{topFailureCategory[0]}</strong>. Fix that category first, then retry the failed items.
+              </Text>
+              <Text as="p" tone="subdued">
+                Failed items are tracked as {Object.entries(failureSummary)
+                  .map(([category, count]) => `${category} (${count})`)
+                  .join(", ")}.
+              </Text>
+            </BlockStack>
+          </Banner>
+        )}
 
         {/* Earned review prompt — shown only after first-ever publish */}
         {isFirstPublish && (
