@@ -25,6 +25,8 @@ export default function App() {
           Home
         </Link>
         <Link to="/app/generate">Scan &amp; Fix</Link>
+        <Link to="/app/scan">SEO Scan Queue</Link>
+        <Link to="/app/reports">Scan History</Link>
         <Link to="/app/settings">Settings</Link>
         <Link to="/app/billing">Billing</Link>
       </NavMenu>

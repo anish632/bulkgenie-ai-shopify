@@ -14,6 +14,8 @@ import {
   ChoiceList,
   RadioButton,
   Banner,
+  Checkbox,
+  Text,
 } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
@@ -35,6 +37,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       shop: {
         ...shop,
         byokApiKey: shop.byokApiKey ? "••••••••" : "",
+        weeklyScansEnabled: shop.weeklyScansEnabled ?? false,
+        scanEmailRecipient: shop.scanEmailRecipient ?? "",
+        scanDayOfWeek: shop.scanDayOfWeek ?? 1,
+        autoApplyLowRisk: shop.autoApplyLowRisk ?? false,
       },
     });
   } catch (error) {
@@ -96,6 +102,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
 
       return json({ success: true, message: "Defaults updated" });
+    }
+
+    case "save_scan_settings": {
+      const weeklyScansEnabled = formData.get("weeklyScansEnabled") === "true";
+      const scanEmailRecipient = (formData.get("scanEmailRecipient") as string) || null;
+      const scanDayOfWeek = parseInt(formData.get("scanDayOfWeek") as string, 10) || 1;
+      const autoApplyLowRisk = formData.get("autoApplyLowRisk") === "true";
+
+      await prisma.shop.update({
+        where: { shopDomain },
+        data: { weeklyScansEnabled, scanEmailRecipient, scanDayOfWeek, autoApplyLowRisk },
+      });
+
+      return json({ success: true, message: "Scan settings saved" });
     }
 
     case "test_key": {
@@ -181,6 +201,20 @@ export default function SettingsPage() {
   const [defaultFields, setDefaultFields] = useState<string[]>(
     JSON.parse(shop.defaultFields),
   );
+  const [weeklyScansEnabled, setWeeklyScansEnabled] = useState(shop.weeklyScansEnabled);
+  const [scanEmailRecipient, setScanEmailRecipient] = useState(shop.scanEmailRecipient);
+  const [scanDayOfWeek, setScanDayOfWeek] = useState(String(shop.scanDayOfWeek));
+  const [autoApplyLowRisk, setAutoApplyLowRisk] = useState(shop.autoApplyLowRisk);
+
+  const handleSaveScanSettings = useCallback(() => {
+    const formData = new FormData();
+    formData.set("intent", "save_scan_settings");
+    formData.set("weeklyScansEnabled", String(weeklyScansEnabled));
+    formData.set("scanEmailRecipient", scanEmailRecipient);
+    formData.set("scanDayOfWeek", scanDayOfWeek);
+    formData.set("autoApplyLowRisk", String(autoApplyLowRisk));
+    submit(formData, { method: "post" });
+  }, [weeklyScansEnabled, scanEmailRecipient, scanDayOfWeek, autoApplyLowRisk, submit]);
 
   const handleSaveProvider = useCallback(() => {
     const formData = new FormData();
@@ -381,6 +415,70 @@ export default function SettingsPage() {
                 />
                 <Button variant="primary" onClick={handleSaveDefaults}>
                   Save Defaults
+                </Button>
+              </BlockStack>
+            </Card>
+          </Layout.AnnotatedSection>
+
+          {/* Weekly Scan Settings */}
+          <Layout.AnnotatedSection
+            title="Weekly SEO Scan"
+            description="Automatically scan your full catalog each week for SEO issues and generate AI-drafted fixes for your review."
+          >
+            <Card>
+              <BlockStack gap="400">
+                <Checkbox
+                  label="Enable weekly catalog scan"
+                  helpText="BulkGenie will scan your entire catalog once a week and stage AI fixes for your approval."
+                  checked={weeklyScansEnabled}
+                  onChange={setWeeklyScansEnabled}
+                />
+
+                <Select
+                  label="Scan day"
+                  options={[
+                    { label: "Monday", value: "1" },
+                    { label: "Tuesday", value: "2" },
+                    { label: "Wednesday", value: "3" },
+                    { label: "Thursday", value: "4" },
+                    { label: "Friday", value: "5" },
+                    { label: "Saturday", value: "6" },
+                    { label: "Sunday", value: "0" },
+                  ]}
+                  value={scanDayOfWeek}
+                  onChange={setScanDayOfWeek}
+                  disabled={!weeklyScansEnabled}
+                  helpText="The cron job always runs on Mondays at 09:00 UTC. Set this to match your preference; adjust the cron schedule in vercel.json if needed."
+                />
+
+                <TextField
+                  label="Email summary recipient"
+                  value={scanEmailRecipient}
+                  onChange={setScanEmailRecipient}
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@yourstore.com"
+                  helpText="Receive a weekly summary email when fixes are ready. Requires RESEND_API_KEY env var. Leave blank to disable."
+                  disabled={!weeklyScansEnabled}
+                />
+
+                <BlockStack gap="200">
+                  <Checkbox
+                    label="Auto-apply low-risk fixes"
+                    helpText="Low-risk fields (missing SEO title, missing meta description, missing alt text) will be published automatically without approval."
+                    checked={autoApplyLowRisk}
+                    onChange={setAutoApplyLowRisk}
+                    disabled={!weeklyScansEnabled}
+                  />
+                  {autoApplyLowRisk && (
+                    <Text as="p" variant="bodySm" tone="caution">
+                      Auto-apply is enabled. Fixes for missing SEO titles, meta descriptions, and image alt text will be published without review.
+                    </Text>
+                  )}
+                </BlockStack>
+
+                <Button variant="primary" onClick={handleSaveScanSettings}>
+                  Save Scan Settings
                 </Button>
               </BlockStack>
             </Card>

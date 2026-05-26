@@ -40,8 +40,52 @@ model Shop {
   targetLanguage   String   @default("en") // ISO code
   descriptionLength String  @default("medium") // "short" | "medium" | "long"
   defaultFields    String   @default("[\"description\",\"seoTitle\",\"seoDescription\",\"altText\"]") // JSON array
+  // Weekly scan settings
+  weeklyScansEnabled  Boolean  @default(false)
+  scanEmailRecipient  String?
+  scanDayOfWeek       Int      @default(1) // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  autoApplyLowRisk    Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+model ScanReport {
+  id              String      @id @default(cuid())
+  shopDomain      String
+  status          String      @default("pending") // pending | running | completed | failed
+  productsScanned Int         @default(0)
+  issuesFound     Int         @default(0)
+  fixesGenerated  Int         @default(0)
+  approvedCount   Int         @default(0)
+  rejectedCount   Int         @default(0)
+  publishedCount  Int         @default(0)
+  errorMessage    String?
+  createdAt       DateTime    @default(now())
+  completedAt     DateTime?
+  issues          ScanIssue[]
+
+  @@index([shopDomain, createdAt])
+}
+
+model ScanIssue {
+  id               String     @id @default(cuid())
+  scanReportId     String
+  shopifyProductId String
+  productTitle     String
+  imageId          String? // only for altText issues
+  issueType        String
+  fieldName        String
+  currentValue     String?
+  severity         String     @default("medium") // low | medium | high
+  status           String     @default("pending") // pending | fix_ready | approved | rejected | published | skipped
+  proposedValue    String?
+  editedValue      String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  scanReport       ScanReport @relation(fields: [scanReportId], references: [id], onDelete: Cascade)
+
+  @@index([scanReportId])
+  @@index([shopifyProductId])
 }
 
 model Job {

@@ -117,6 +117,126 @@ export async function fetchProductList(
   return json.data.products;
 }
 
+// Fetches all products up to maxProducts for catalog scanning.
+// Includes tags and image URLs (fields not included in fetchProductList).
+export async function fetchAllProductsForScan(
+  accessToken: string,
+  shopDomain: string,
+  maxProducts = 500,
+): Promise<
+  Array<{
+    id: string;
+    title: string;
+    descriptionHtml: string;
+    productType: string;
+    vendor: string;
+    tags: string[];
+    seo: { title: string; description: string };
+    images: Array<{ id: string; altText: string; url: string }>;
+  }>
+> {
+  const query = `
+    query scanProducts($first: Int!, $after: String) {
+      products(first: $first, after: $after) {
+        edges {
+          cursor
+          node {
+            id
+            title
+            descriptionHtml
+            productType
+            vendor
+            tags
+            seo {
+              title
+              description
+            }
+            images(first: 10) {
+              edges {
+                node {
+                  id
+                  altText
+                  url
+                }
+              }
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  `;
+
+  type ScanProductRow = {
+    id: string;
+    title: string;
+    descriptionHtml: string;
+    productType: string;
+    vendor: string;
+    tags: string[];
+    seo: { title: string; description: string };
+    images: Array<{ id: string; altText: string; url: string }>;
+  };
+
+  const all: ScanProductRow[] = [];
+  let cursor: string | null = null;
+
+  while (all.length < maxProducts) {
+    const batchSize = Math.min(50, maxProducts - all.length);
+    const res = await fetch(shopifyGqlUrl(shopDomain), {
+      method: "POST",
+      headers: gqlHeaders(accessToken),
+      body: JSON.stringify({
+        query,
+        variables: { first: batchSize, after: cursor },
+      }),
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const json: any = await res.json();
+    if (json.errors) throw new Error(JSON.stringify(json.errors));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const products = json.data.products as any;
+    const edges: Array<{ node: any }> = products.edges;
+    const pageInfo: { hasNextPage: boolean; endCursor: string } = products.pageInfo;
+
+    for (const edge of edges) {
+      const node = edge.node;
+      all.push({
+        id: String(node.id ?? ""),
+        title: String(node.title ?? ""),
+        descriptionHtml: String(node.descriptionHtml ?? ""),
+        productType: String(node.productType ?? ""),
+        vendor: String(node.vendor ?? ""),
+        tags: Array.isArray(node.tags) ? (node.tags as string[]) : [],
+        seo: {
+          title: String(node.seo?.title ?? ""),
+          description: String(node.seo?.description ?? ""),
+        },
+        images: Array.isArray(node.images?.edges)
+          ? (node.images.edges as Array<{ node: any }>).map((e) => ({
+              id: String(e.node.id ?? ""),
+              altText: String(e.node.altText ?? ""),
+              url: String(e.node.url ?? ""),
+            }))
+          : [],
+      });
+    }
+
+    if (!pageInfo.hasNextPage || edges.length === 0) break;
+    cursor = pageInfo.endCursor;
+
+    // Respect Shopify rate limits
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  return all;
+}
+
 export async function updateProductInShopify(
   accessToken: string,
   shopDomain: string,
