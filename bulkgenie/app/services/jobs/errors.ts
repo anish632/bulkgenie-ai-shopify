@@ -1,7 +1,8 @@
 export type JobFailureCategory =
-  | "provider_setup"
+  | "provider_billing"   // out of credits / quota — fatal, cascade all
+  | "provider_auth"      // bad API key / unauthorized — fatal, cascade all
+  | "provider_transient" // timeout / network / 5xx — retryable, no cascade
   | "shopify_publish"
-  | "network"
   | "generation"
   | "unknown";
 
@@ -12,27 +13,25 @@ export function classifyJobError(error: unknown): {
   const message = error instanceof Error ? error.message : String(error || "Unknown error");
   const lower = message.toLowerCase();
 
+  // Billing / quota exhaustion — fatal, cascade
   if (
     lower.includes("credit balance is too low") ||
     lower.includes("insufficient_quota") ||
-    lower.includes("quota") ||
+    lower.includes("quota exceeded") ||
     lower.includes("billing") ||
-    lower.includes("rate limit") ||
-    lower.includes("service unavailable") ||
-    lower.includes("timeout") ||
-    lower.includes("network error") ||
-    lower.includes("fetch failed") ||
-    lower.includes("gateway")
+    lower.includes("rate_limit_exceeded")
   ) {
     return {
-      category: "provider_setup",
+      category: "provider_billing",
       message:
         "Your AI provider account is out of credits or billing is not active. Add credits or switch providers in Settings, then regenerate.",
     };
   }
 
+  // Auth / key problems — fatal, cascade
   if (
     lower.includes("could not resolve authentication method") ||
+    lower.includes("no api key configured") ||
     lower.includes("api key") ||
     lower.includes("apikey") ||
     lower.includes("auth token") ||
@@ -43,9 +42,30 @@ export function classifyJobError(error: unknown): {
     lower.includes("permission")
   ) {
     return {
-      category: "provider_setup",
+      category: "provider_auth",
       message:
         "Your AI provider key could not be used. Check the provider and API key in Settings, test it, then regenerate.",
+    };
+  }
+
+  // Transient — retryable, do NOT cascade
+  if (
+    lower.includes("rate limit") ||
+    lower.includes("service unavailable") ||
+    lower.includes("timeout") ||
+    lower.includes("network error") ||
+    lower.includes("fetch failed") ||
+    lower.includes("econnreset") ||
+    lower.includes("econnrefused") ||
+    lower.includes("gateway") ||
+    lower.includes("502") ||
+    lower.includes("503") ||
+    lower.includes("504")
+  ) {
+    return {
+      category: "provider_transient",
+      message:
+        "A transient network or rate-limit error occurred. Retry the failed item.",
     };
   }
 
@@ -81,16 +101,6 @@ export function classifyJobError(error: unknown): {
   };
 }
 
-export function isFatalProviderSetupError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("out of credits") ||
-    lower.includes("billing is not active") ||
-    lower.includes("provider key could not be used") ||
-    lower.includes("go to settings") ||
-    lower.includes("api key") ||
-    lower.includes("unauthorized") ||
-    lower.includes("forbidden") ||
-    lower.includes("access denied")
-  );
+export function isFatalProviderSetupError(category: JobFailureCategory): boolean {
+  return category === "provider_billing" || category === "provider_auth";
 }

@@ -149,7 +149,7 @@ export async function processJobInline(jobId: string): Promise<void> {
         },
       });
 
-      if (isFatalProviderSetupError(errMsg)) {
+      if (isFatalProviderSetupError(category)) {
         const failedRemaining = await prisma.jobItem.updateMany({
           where: { jobId, status: "pending" },
           data: { status: "failed", errorMessage: errMsg },

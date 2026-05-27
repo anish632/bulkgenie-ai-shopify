@@ -252,7 +252,7 @@ async function processOneItem(jobId: string, shopDomain: string): Promise<void> 
       data: { failedCount: { increment: 1 }, processedCount: { increment: 1 } },
     });
 
-    if (isFatalProviderSetupError(errMsg)) {
+    if (isFatalProviderSetupError(category)) {
       const failedRemaining = await prisma.jobItem.updateMany({
         where: { jobId, status: "pending" },
         data: { status: "failed", errorMessage: errMsg },
@@ -517,6 +517,9 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
 
     case "regenerate_item": {
       const itemId = formData.get("itemId") as string;
+      const itemToRegen = job.items.find((i) => i.id === itemId);
+      const wasFailed = itemToRegen?.status === "failed";
+
       await prisma.jobItem.update({
         where: { id: itemId },
         data: {
@@ -533,10 +536,15 @@ export const action = async ({ params, request }: ActionFunctionArgs) => {
         },
       });
 
-      // Set job back to processing — polling loader will pick it up
+      // Set job back to processing; undo the counters if item was previously failed
       await prisma.job.update({
         where: { id: job.id },
-        data: { status: "processing" },
+        data: {
+          status: "processing",
+          ...(wasFailed
+            ? { failedCount: { decrement: 1 }, processedCount: { decrement: 1 } }
+            : {}),
+        },
       });
 
       return json({ success: true });
