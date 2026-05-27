@@ -33,6 +33,7 @@ import {
   catalogGapSummary,
   type ProductForScoring,
 } from "../services/scoring";
+import { getMonthlyLimit, PLANS } from "../services/billing/plans";
 
 interface ShopifyProduct extends ProductForScoring {
   id: string;
@@ -152,23 +153,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return json({ error: "Shop not found" }, { status: 404 });
   }
 
-  if (!shop.byokApiKey) {
+  // Scale tier requires a BYOK key; free tier uses template generation
+  if (shop.tier === "scale" && !shop.byokApiKey) {
     return json(
       {
         error:
-          "Add an API key in Settings before generating content. BulkGenie uses your key to create drafts for review.",
+          "Add an API key in Settings to use the Scale tier. Go to Settings to configure your provider.",
       },
       { status: 400 },
     );
   }
 
-  const tierLimits: Record<string, number> = {
-    free: 10,
-    starter: 100,
-    growth: 500,
-    scale: Infinity,
-  };
-  const limit = tierLimits[shop.tier] || 10;
+  const limit = getMonthlyLimit(shop.tier);
   if (
     limit !== Infinity &&
     shop.monthlyUsage + selectedProducts.length > limit
@@ -265,7 +261,7 @@ export default function GeneratePage() {
   );
 
   const handleGenerate = useCallback(() => {
-    if (!hasApiKey || !selectedResources.length || !selectedFields.length) {
+    if (!selectedResources.length || !selectedFields.length) {
       return;
     }
 
@@ -277,21 +273,14 @@ export default function GeneratePage() {
     formData.set("selectedProducts", JSON.stringify(selectedProducts));
     formData.set("fields", JSON.stringify(selectedFields));
     submit(formData, { method: "post" });
-  }, [hasApiKey, filteredProducts, selectedResources, selectedFields, submit]);
+  }, [filteredProducts, selectedResources, selectedFields, submit]);
 
-  const tierLimits: Record<string, number> = {
-    free: 10,
-    starter: 100,
-    growth: 500,
-    scale: Infinity,
-  };
-  const limit = tierLimits[shopTier] || 10;
+  const limit = PLANS.find((p) => p.id === shopTier)?.productsPerMonth ?? 10;
   const remaining =
     limit === Infinity ? Infinity : Math.max(0, limit - monthlyUsage);
   const selectedCount = selectedResources.length;
   const overMonthlyLimit = remaining !== Infinity && selectedCount > remaining;
   const canGenerate =
-    hasApiKey &&
     selectedCount > 0 &&
     selectedFields.length > 0 &&
     !overMonthlyLimit;
@@ -376,15 +365,16 @@ export default function GeneratePage() {
   return (
     <Page title="Scan & Fix Product Pages" backAction={{ url: "/app" }}>
       <BlockStack gap="500">
-        {!hasApiKey && (
+        {shopTier === "free" && (
           <Banner
-            tone="warning"
-            title="Add an API key to generate draft content"
-            action={{ content: "Add API key", url: "/app/settings" }}
+            tone="info"
+            title={`Free plan — ${remaining === Infinity ? "unlimited" : remaining} of ${limit} products remaining this month`}
+            action={{ content: "Upgrade to Scale", url: "/app/billing" }}
           >
             <p>
-              Choose Anthropic, OpenAI, Mistral, or Kimi. BulkGenie creates
-              draft product content for review before anything is published.
+              Free drafts use structured templates. Upgrade to Scale to connect
+              your own AI key (Anthropic, OpenAI, Mistral, or Kimi) for
+              AI-generated copy.
             </p>
           </Banner>
         )}
