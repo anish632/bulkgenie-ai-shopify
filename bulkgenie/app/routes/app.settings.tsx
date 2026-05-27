@@ -36,6 +36,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({
       shop: {
         ...shop,
+        tier: shop.tier,
         byokApiKey: shop.byokApiKey ? "••••••••" : "",
         weeklyScansEnabled: shop.weeklyScansEnabled ?? false,
         scanEmailRecipient: shop.scanEmailRecipient ?? "",
@@ -272,76 +273,97 @@ export default function SettingsPage() {
           {/* AI Provider Section */}
           <Layout.AnnotatedSection
             title="AI Provider"
-            description="Use your own provider key to generate product content drafts."
+            description={
+              shop.tier === "scale"
+                ? "Connect your own provider key for AI-generated product content."
+                : "Free plan uses template-based content generation. Upgrade to Scale to connect your own AI key."
+            }
           >
             <Card>
               <BlockStack gap="400">
-                <Banner tone="info" title="One-time setup before your first batch">
-                  <p>
-                    Paste a provider key, test it, then save. The key is
-                    encrypted before storage and used when you generate product
-                    descriptions, SEO copy, and image alt text.
-                  </p>
-                </Banner>
-                <RadioButton
-                  label="Anthropic (Claude)"
-                  helpText="Uses Claude models for high-quality product content."
-                  checked={aiProvider === "byok_anthropic"}
-                  id="byok_anthropic"
-                  name="aiProvider"
-                  onChange={() => setAiProvider("byok_anthropic")}
-                />
-                <RadioButton
-                  label="OpenAI (GPT)"
-                  helpText="Uses GPT models for product content generation."
-                  checked={aiProvider === "byok_openai"}
-                  id="byok_openai"
-                  name="aiProvider"
-                  onChange={() => setAiProvider("byok_openai")}
-                />
-                <RadioButton
-                  label="Mistral AI"
-                  helpText="Uses Mistral models with your Mistral API key."
-                  checked={aiProvider === "byok_mistral"}
-                  id="byok_mistral"
-                  name="aiProvider"
-                  onChange={() => setAiProvider("byok_mistral")}
-                />
-                <RadioButton
-                  label="Kimi (Moonshot AI)"
-                  helpText="Uses Kimi models via Moonshot AI API."
-                  checked={aiProvider === "byok_kimi"}
-                  id="byok_kimi"
-                  name="aiProvider"
-                  onChange={() => setAiProvider("byok_kimi")}
-                />
+                {shop.tier !== "scale" ? (
+                  <Banner
+                    tone="info"
+                    title="Template generation is active on the Free plan"
+                    action={{ content: "Upgrade to Scale", url: "/app/billing" }}
+                  >
+                    <p>
+                      Your free plan generates structured content from product
+                      data — no key required. Upgrade to Scale to connect
+                      Anthropic, OpenAI, Mistral, or Kimi for AI-generated copy.
+                    </p>
+                  </Banner>
+                ) : (
+                  <Banner tone="info" title="Paste your key, test it, then save">
+                    <p>
+                      Your key is encrypted before storage and used only when
+                      you generate product descriptions, SEO copy, and image alt
+                      text.
+                    </p>
+                  </Banner>
+                )}
+                {shop.tier === "scale" && (
+                  <>
+                    <RadioButton
+                      label="Anthropic (Claude)"
+                      helpText="Uses Claude models for high-quality product content."
+                      checked={aiProvider === "byok_anthropic"}
+                      id="byok_anthropic"
+                      name="aiProvider"
+                      onChange={() => setAiProvider("byok_anthropic")}
+                    />
+                    <RadioButton
+                      label="OpenAI (GPT)"
+                      helpText="Uses GPT models for product content generation."
+                      checked={aiProvider === "byok_openai"}
+                      id="byok_openai"
+                      name="aiProvider"
+                      onChange={() => setAiProvider("byok_openai")}
+                    />
+                    <RadioButton
+                      label="Mistral AI"
+                      helpText="Uses Mistral models with your Mistral API key."
+                      checked={aiProvider === "byok_mistral"}
+                      id="byok_mistral"
+                      name="aiProvider"
+                      onChange={() => setAiProvider("byok_mistral")}
+                    />
+                    <RadioButton
+                      label="Kimi (Moonshot AI)"
+                      helpText="Uses Kimi models via Moonshot AI API."
+                      checked={aiProvider === "byok_kimi"}
+                      id="byok_kimi"
+                      name="aiProvider"
+                      onChange={() => setAiProvider("byok_kimi")}
+                    />
+                    <BlockStack gap="300">
+                      <TextField
+                        label="API Key"
+                        value={byokApiKey}
+                        onChange={setByokApiKey}
+                        type="password"
+                        autoComplete="off"
+                        placeholder={aiProvider === "byok_anthropic" ? "sk-ant-..." : "sk-..."}
+                        helpText={
+                          aiProvider === "byok_anthropic"
+                            ? "Get your key at console.anthropic.com. Your key is encrypted before storage."
+                            : aiProvider === "byok_mistral"
+                              ? "Get your key at console.mistral.ai. Your key is encrypted before storage."
+                              : aiProvider === "byok_kimi"
+                                ? "Get your key at platform.moonshot.cn. Your key is encrypted before storage."
+                                : "Get your key at platform.openai.com. Your key is encrypted before storage."
+                        }
+                      />
+                      <InlineStack gap="200">
+                        <Button onClick={handleTestKey}>Test Key</Button>
+                      </InlineStack>
+                    </BlockStack>
 
-                <BlockStack gap="300">
-                  <TextField
-                    label="API Key"
-                    value={byokApiKey}
-                    onChange={setByokApiKey}
-                    type="password"
-                    autoComplete="off"
-                    placeholder={aiProvider === "byok_anthropic" ? "sk-ant-..." : "sk-..."}
-                    helpText={
-                      aiProvider === "byok_anthropic"
-                        ? "Get your key at console.anthropic.com. Your key is encrypted before storage."
-                        : aiProvider === "byok_mistral"
-                          ? "Get your key at console.mistral.ai. Your key is encrypted before storage."
-                          : aiProvider === "byok_kimi"
-                            ? "Get your key at platform.moonshot.cn. Your key is encrypted before storage."
-                            : "Get your key at platform.openai.com. Your key is encrypted before storage."
-                    }
-                  />
-                  <InlineStack gap="200">
-                    <Button onClick={handleTestKey}>Test Key</Button>
-                  </InlineStack>
-                </BlockStack>
-
-                <Button variant="primary" onClick={handleSaveProvider}>
-                  Save Provider
-                </Button>
+                    <Button variant="primary" onClick={handleSaveProvider}>
+                      Save Provider
+                    </Button>
+                  </>
+                )}
               </BlockStack>
             </Card>
           </Layout.AnnotatedSection>
